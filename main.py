@@ -38,7 +38,7 @@ async def main():
     #await add_lectures(cal)
 
     ren = Renderer(cal)
-    await ren.render(arrow.get('2026-01-01'), arrow.get('2026-01-31'), 'test.png')
+    await ren.render(arrow.get('2026-01-01'), arrow.get('2026-02-28'), 'test.png')
 
 if __name__ == '__main__':
     asyncio.run(main())

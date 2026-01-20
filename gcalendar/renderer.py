@@ -6,8 +6,8 @@ import pprint
 import arrow
 
 # Style params -------------------
-CELL_WIDTH_PX = 150
-CELL_HEIGHT_PX = 120
+CELL_WIDTH_PX = 120
+CELL_HEIGHT_PX = 150
 HEADER_HEIGHT_PX = 30
 
 #ALWAYS_WRAP_WORDS = True
