@@ -2,4 +2,5 @@ google-auth
 requests
 arrow
 httpx
-dotenv
+python-dotenv
+pillow
