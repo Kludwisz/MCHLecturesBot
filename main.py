@@ -1,4 +1,4 @@
-from calendar import Calendar, Lecture
+from gcalendar.gcalendar import Calendar
 from dotenv import dotenv_values
 
 config = dotenv_values(".env")
