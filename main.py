@@ -13,7 +13,7 @@ async def main():
         config["SERVICE_ACCOUNT_SECRET"]
     )
     ren = Renderer(cal)
-    await ren.render(arrow.get('2024-01-10'), arrow.get('2026-01-20'), 'a')
+    await ren.render(arrow.get('2026-01-01'), arrow.get('2026-01-31'), 'test.png')
 
 if __name__ == '__main__':
     asyncio.run(main())
