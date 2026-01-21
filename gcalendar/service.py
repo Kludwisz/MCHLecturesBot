@@ -2,7 +2,7 @@
 /add_event --> open dialog with a form
 /my_events --> sends a message with dropdowns and args (update existing, delete existing, browse)
 /upcoming_events num_events:int --> pages of events & buttons for nav
-/calendar [week|month|2-months] --> renders the requested calendar (link to calendar embedded in browser?)
+(implemented) /calendar [this-week|week|month|2-months] --> renders the requested calendar (link to calendar embedded in browser?)
 Post-MVP: /notifyme (event)?
 '''
 
@@ -39,9 +39,9 @@ class CalendarService:
                 snap_to_week_start(arrow.now()), 
                 snap_to_week_start(arrow.now()).shift(days=7, seconds=-1)
             ),
-            'week': lambda: (arrow.now(), arrow.now().shift(days=7)),
-            'month': lambda: (arrow.now(), arrow.now().shift(months=1)),
-            '2-months': lambda: (arrow.now(), arrow.now().shift(months=2))
+            'week': lambda: (snap_to_day_start(arrow.now()), arrow.now().shift(days=7)),
+            'month': lambda: (snap_to_day_start(arrow.now()), arrow.now().shift(months=1)),
+            '2-months': lambda: (snap_to_day_start(arrow.now()), arrow.now().shift(months=2))
         }
         if not scope in AVAILABLE_SCOPES.keys():
             raise ValueError(f'illegal calendar scope: {scope}')
@@ -50,5 +50,24 @@ class CalendarService:
         #print(start.isoformat(), end.isoformat())
         await self.renderer.render(start, end, filename)
         
+    async def get_upcoming_lectures(self, limit: int = 1) -> list[Lecture]:
+        """
+        :param limit: the maximum number of upcoming lectures (must be positive). Default 1.
+        :return: list of at most `limit` lectures that are either currently in progress or will happen in the future, sorted by the event start time.
+        """
+        if limit <= 0:
+            raise ValueError(f"limit must be positive, got {limit}")
+        
+        t_now = arrow.now()
+        search_start = t_now.shift(days=-1)  # to handle in-progress events
+        data = await self.calendar_client.get_event_list(timeMin=search_start)
+        lectures = [Lecture.from_json(item) for item in data["items"]]
+        for i in range(len(lectures)):
+            end = lectures[i].start_time.shift(minutes=lectures[i].duration_minutes)
+            if (end - t_now).total_seconds() > 0:
+                return lectures[i:min(i+limit, len(lectures))]
+        return []
+
+
 
     

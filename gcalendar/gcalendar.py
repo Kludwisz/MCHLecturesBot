@@ -122,7 +122,7 @@ class Calendar:
             params["q"] = query_text
 
         if private_property_filters:
-            params["privateExtendedProperty"] = "&".join(private_property_filters)
+            params["privateExtendedProperty"] = "&".join(private_property_filters) + "&singleEvents=True&orderBy=startTime"
         url = f"https://www.googleapis.com/calendar/v3/calendars/{self.id}/events"
         response = await self.client.get(url, params=params)
         return response.json()
@@ -139,31 +139,3 @@ class Calendar:
         response = await self.client.delete(url)
         response.raise_for_status()
         print(f"Event {event_id} deleted.")
-
-
-async def main():
-    calendar = Calendar(
-        'd67a2948d8390dc9d5fcd55773bb8e4de342a7d234cc6c278a0ee59a6dcc1e22@group.calendar.google.com',
-        'secrets/service_account.json'
-    )
-    lec = Lecture(
-        extended_properties=ExtendedProperties(
-            discord_userid='12345', discord_username='Scriptline', recording_perms='MCH_UNLISTED_RECORDING',
-            lecture_format='whiteboard presentation', description='Some description in the past', prior_knowledge='none'),
-        start_time=arrow.get("2026-01-07T18:00"),
-        duration_minutes=90,
-        title='Interesting Lecture'
-    )
-    await calendar.create_event(lec)
-    events = await calendar.get_event_list(query_text="past")
-
-    event = Lecture.from_json(events["items"][0])
-    event.start_time = event.start_time.shift(days=-1)
-    event.duration_minutes += 180
-    event.title += ' (modified)'
-    await calendar.update_event(event)
-    await calendar.client.aclose()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
