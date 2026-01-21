@@ -1,45 +1,15 @@
-from gcalendar.gcalendar import Calendar, Lecture, ExtendedProperties
-from gcalendar.renderer import Renderer
-from dotenv import dotenv_values
-import arrow
 import asyncio
-
-
-async def add_lectures(cal: Calendar):
-    lec = Lecture(
-        extended_properties=ExtendedProperties(
-            discord_userid='12549827142014', discord_username='someone',
-            recording_perms='NO_RECORDING', lecture_format='whiteboard',
-            description='A throrough explanation & analysis on why Minecraft: Java Edition is way better than Bedrock Edition.',
-            prior_knowledge='Minecraft basics'
-        ),
-        start_time=arrow.get('2026-01-16 12:45'),
-        duration_minutes=45, title='Why Java Edition is way better than Bedrock Edition'
-    )
-    #await cal.create_event(lec)
-    lec.start_time = arrow.get('2026-01-04 08:00')
-    lec.duration_minutes = 90
-    lec.title = 'Why Java Edition is way better than Bedrock Edition'
-    #await cal.create_event(lec)
-    lec.start_time = arrow.get('2026-01-29 21:15')
-    lec.duration_minutes = 45
-    lec.title = 'Why Java Edition is way better than Bedrock Edition'
-    #await cal.create_event(lec)
+from gcalendar.service import CalendarService
 
 
 async def main():
-    config = dotenv_values(".env")
+    cs = CalendarService()
+    cs.connect()
+    await cs.render_calendar_to_file(scope='this-week', filename='testThisWeek.png')
+    await cs.render_calendar_to_file(scope='week', filename='testWeek.png')
+    await cs.render_calendar_to_file(scope='month', filename='testMonth.png')
+    await cs.render_calendar_to_file(scope='2-months', filename='test2Months.png')
 
-    cal = Calendar(
-        config["ACCOUNT_EMAIL"],
-        config["SERVICE_ACCOUNT_SECRET"]
-    )
-    #await cal.delete_event('nola7050t27d6u0pj7f72vs0lg')
-    #await add_lectures(cal)
-
-    ren = Renderer(cal)
-    for i in range(4):
-        await ren.render(arrow.get('2026-01-01'), arrow.get('2026-02-01').shift(days=i), 'test.png')
 
 if __name__ == '__main__':
     asyncio.run(main())

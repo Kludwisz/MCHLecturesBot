@@ -27,6 +27,7 @@ DAY_TEXT_COLOR = 0x8A8080
 DAY_FONT_SIZE = 16
 
 BACKGROUND_COLOR = 0x2A2020
+BACKGROUND_COLOR_DARKER = 0x241A1A
 
 LECTURE_COLOR = 0x220000
 LECTURE_TEXT_COLOR = 0xFFFFFF
@@ -93,7 +94,7 @@ class Renderer:
         self.cache: list[tuple[str, Image.Image]] = []  # simple LRU cache
         self.MAX_CACHE_SIZE = 5
 
-    def render_lecture(self, drawer: ImageDraw.ImageDraw, lecture: Lecture, x, y):
+    def _render_lecture(self, drawer: ImageDraw.ImageDraw, lecture: Lecture, x, y):
         P = PADDING
 
         bbox_day = FONT_H1.getbbox('1')
@@ -125,12 +126,12 @@ class Renderer:
         drawer.text((text_pos[0], text_pos[1]+hour_height), multiline_text, LECTURE_TEXT_COLOR, FONT_P)
 
 
-    def render_day(self, drawer: ImageDraw.ImageDraw, lecture_data: list[Lecture], day_of_week, week, base_date: arrow.Arrow):
+    def _render_day(self, drawer: ImageDraw.ImageDraw, lecture_data: list[Lecture], day_of_week, week, base_date: arrow.Arrow, darker=False):
         W, H = CELL_WIDTH_PX, CELL_HEIGHT_PX
         xmin, ymin = day_of_week * W, week * H + HEADER_HEIGHT_PX
         
         # outline, day number
-        drawer.rectangle([xmin, ymin, xmin+W, ymin+H], outline=DAY_BORDER_COLOR, width=DAY_BORDER_WIDTH)
+        drawer.rectangle([xmin, ymin, xmin+W, ymin+H], outline=DAY_BORDER_COLOR, width=DAY_BORDER_WIDTH, fill=(BACKGROUND_COLOR_DARKER if darker else BACKGROUND_COLOR))
         day_txt = f'{base_date.datetime.day}'
         if base_date.datetime.day == 1:
             day_txt += f' {month_name_short(base_date)}'
@@ -138,12 +139,12 @@ class Renderer:
 
         for lecture in lecture_data:
             if lecture.start_time.date() == base_date.date():
-                self.render_lecture(drawer, lecture, xmin, ymin + 2*PADDING)
+                self._render_lecture(drawer, lecture, xmin, ymin + 2*PADDING)
 
     async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, filepath: str):
         # find first Monday before target date and first Sunday after last date
-        cal_start = start_date.shift(days=(-start_date.isoweekday() + 1))
-        cal_end = end_date.shift(days=(-end_date.isoweekday() + 7))
+        cal_start = snap_to_day_start(start_date.shift(days=(-start_date.isoweekday() + 1)))
+        cal_end = snap_to_day_start(end_date.shift(days=(-end_date.isoweekday() + 7))).shift(days=1, seconds=-1)
         # fetch lecture data
         data = await self.calendar.get_event_list(timeMin=cal_start, timeMax=cal_end)
         lectures: list[Lecture] = [Lecture.from_json(lec_json) for lec_json in data['items']]
@@ -176,7 +177,9 @@ class Renderer:
         # days
         for week in range(n_weeks):
             for day in range(7):
-                self.render_day(drawer, lectures, day, week, cal_start.shift(days=(week*7 + day)))
+                base_date = cal_start.shift(days=(week*7 + day))
+                darker = False if base_date.is_between(start_date, end_date, bounds="[]") else True
+                self._render_day(drawer, lectures, day, week, base_date, darker=darker)
 
         # update cache
         if len(self.cache) == self.MAX_CACHE_SIZE:

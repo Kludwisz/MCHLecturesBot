@@ -44,3 +44,11 @@ def month_name(timepoint: arrow.Arrow) -> str:
 
 def month_name_short(timepoint: arrow.Arrow) -> str:
     return month_name(timepoint)[:3]
+
+
+def snap_to_day_start(timepoint: arrow.Arrow) -> arrow.Arrow:
+    return arrow.get(timepoint.date().isoformat())
+
+
+def snap_to_week_start(timepoint: arrow.Arrow) -> arrow.Arrow:
+    return snap_to_day_start(timepoint.shift(days=1-timepoint.isoweekday()))

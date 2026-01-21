@@ -9,20 +9,6 @@ from textwrap import dedent
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 
-'''
-properties {
-    "discord_userid": "userid",
-    "recording_perms": "enum value or CUSTOM for custom recording permission",
-    "custom_perms": "description of custom permission thing"
-}
-
-/add_event --> open dialog with a form
-/my_events --> sends a message with dropdowns and args (update existing, delete existing, browse)
-/upcoming_events num_events:int --> pages of events & buttons for nav
-/calendar --> renders the whole month (link to calendar embedded in browser?)
-Post-MVP: /notifyme (event)?
-'''
-
 
 RECORDING_PERMS = {
     'NO_RECORDING': 'This is a live event. Audio-visual recording of the lecture is forbidden.',
