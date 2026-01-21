@@ -2,7 +2,7 @@ from .gcalendar import Calendar, Lecture
 from .dateutils import *
 from PIL import Image, ImageDraw, ImageFont
 from math import floor, ceil
-import pprint
+from pprint import pprint
 import arrow
 
 # Style params -------------------
@@ -11,9 +11,11 @@ CELL_HEIGHT_PX = 150
 HEADER_HEIGHT_PX = 30
 
 #ALWAYS_WRAP_WORDS = True
+FONT_H0_SIZE = 24
 FONT_H1_SIZE = 20
 FONT_H2_SIZE = 16
 FONT_P_SIZE = 12
+FONT_H0 = ImageFont.load_default(FONT_H0_SIZE)
 FONT_H1 = ImageFont.load_default(FONT_H1_SIZE)
 FONT_H2 = ImageFont.load_default(FONT_H2_SIZE)
 FONT_P = ImageFont.load_default(FONT_P_SIZE)
@@ -26,7 +28,7 @@ DAY_FONT_SIZE = 16
 
 BACKGROUND_COLOR = 0x2A2020
 
-LECTURE_COLOR = 0x220011
+LECTURE_COLOR = 0x220000
 LECTURE_TEXT_COLOR = 0xFFFFFF
 
 # --------------------------------
@@ -73,10 +75,22 @@ def wrap_text_to_fit(text: str, font: ImageFont.ImageFont, max_width: float, max
     return full_text + line
 
 
+def last_modified(lectures_json) -> arrow.Arrow:
+    if len(lectures_json) == 0:
+        return arrow.get('2000-01-01')
+    
+    last_mod_date = arrow.get(lectures_json[0]['updated'])
+    for lec_json in lectures_json:
+        mod_date = arrow.get(lec_json['updated'])
+        if mod_date.is_between(last_mod_date, last_mod_date.shift(years=1000)):
+            last_mod_date = mod_date
+    return last_mod_date
+
+
 class Renderer:
     def __init__(self, calendar: Calendar):
         self.calendar: Calendar = calendar
-        self.cache: list[tuple[str, Image.Image]] = []  # simple LRC cache
+        self.cache: list[tuple[str, Image.Image]] = []  # simple LRU cache
         self.MAX_CACHE_SIZE = 5
 
     def render_lecture(self, drawer: ImageDraw.ImageDraw, lecture: Lecture, x, y):
@@ -93,8 +107,6 @@ class Renderer:
         hour_height = bbox_hour[3] - bbox_hour[1] + 2*P
 
         # calculate text bounding box & surrounding rect bounding box
-        if lecture.start_time.date().day == 13:
-            lecture.title += ' that serves as a test example and provides a unique kind of entertainment to anyone who happens to read this rather lengthy description'
         writable_width = CELL_WIDTH_PX - 4 * P
         writable_height = CELL_HEIGHT_PX - hour_height - 6*P
 
@@ -119,39 +131,47 @@ class Renderer:
         
         # outline, day number
         drawer.rectangle([xmin, ymin, xmin+W, ymin+H], outline=DAY_BORDER_COLOR, width=DAY_BORDER_WIDTH)
-        drawer.text((xmin+DAY_BORDER_WIDTH + PADDING, ymin), f'{base_date.datetime.day}', fill=DAY_TEXT_COLOR, font=FONT_H1)
+        day_txt = f'{base_date.datetime.day}'
+        if base_date.datetime.day == 1:
+            day_txt += f' {month_name_short(base_date)}'
+        drawer.text((xmin+DAY_BORDER_WIDTH + PADDING, ymin), day_txt, fill=DAY_TEXT_COLOR, font=FONT_H1)
 
         for lecture in lecture_data:
             if lecture.start_time.date() == base_date.date():
                 self.render_lecture(drawer, lecture, xmin, ymin + 2*PADDING)
 
     async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, filepath: str):
-        render_key = daystring(start_date) + ':' + daystring(end_date)
-        for key, image in self.cache:
-            if key == render_key:
-                image.save(filepath)  # use cache
-                return
-        
         # find first Monday before target date and first Sunday after last date
         cal_start = start_date.shift(days=(-start_date.isoweekday() + 1))
-        cal_end = end_date.shift(days=(-end_date.isoweekday() + 7)) 
-        n_weeks = ((cal_end - cal_start).days + 1) // 7
-        img = Image.new("RGB", (7*CELL_WIDTH_PX, n_weeks*CELL_HEIGHT_PX + HEADER_HEIGHT_PX), BACKGROUND_COLOR)
-        
+        cal_end = end_date.shift(days=(-end_date.isoweekday() + 7))
         # fetch lecture data
         data = await self.calendar.get_event_list(timeMin=cal_start, timeMax=cal_end)
         lectures: list[Lecture] = [Lecture.from_json(lec_json) for lec_json in data['items']]
+        render_key = daystring(cal_start) + ':' + daystring(cal_end) + f':{last_modified(data['items'])}'
+
+        for pair in self.cache:
+            key, image = pair
+            if key == render_key:
+                # use cache & refresh cache entry
+                print(f'using cache (current size: {len(self.cache)})')
+                image.save(filepath)  
+                self.cache.remove(pair)
+                self.cache.append(pair)
+                return
+        
+        n_weeks = ((cal_end - cal_start).days + 1) // 7
+        img = Image.new("RGB", (7*CELL_WIDTH_PX, n_weeks*CELL_HEIGHT_PX + HEADER_HEIGHT_PX), BACKGROUND_COLOR)
         
         # table header
         drawer = ImageDraw.Draw(img)
+        bbox = FONT_H0.getbbox('MTWFS')
+        text_h = bbox[3] - bbox[1]
         for day in range(1, 8):
             day_name = DAY_NAMES[day][:3]
-            bbox = FONT_H1.getbbox(day_name)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
+            text_w = FONT_H0.getlength(day_name)
             drawer.text(
-                (CELL_WIDTH_PX//2 - text_w//2 + (day-1) * CELL_WIDTH_PX, HEADER_HEIGHT_PX - 2*PADDING - text_h), 
-                day_name, DAY_TEXT_COLOR, FONT_H1
+                (CELL_WIDTH_PX//2 - text_w//2 + (day-1) * CELL_WIDTH_PX, HEADER_HEIGHT_PX - text_h - 3*PADDING), 
+                day_name, DAY_TEXT_COLOR, FONT_H0
             )
         # days
         for week in range(n_weeks):
@@ -163,5 +183,4 @@ class Renderer:
             self.cache.pop(0)
         self.cache.append((render_key, img))
         img.save(filepath)
-
-
+        print(f'added new element, current cache size: {len(self.cache)}')
