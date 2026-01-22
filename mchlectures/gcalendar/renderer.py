@@ -89,7 +89,7 @@ def last_modified(lectures_json) -> arrow.Arrow:
 
 
 class Renderer:
-    def __init__(self, calendar: Calendar):
+    def __init__(self, calendar: Calendar, cell_width=CELL_WIDTH_PX, cell_height=CELL_HEIGHT_PX):
         self.calendar: Calendar = calendar
         self.cache: list[tuple[str, Image.Image]] = []  # simple LRU cache
         self.MAX_CACHE_SIZE = 5

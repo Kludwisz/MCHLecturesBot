@@ -2,7 +2,6 @@ import dataclasses
 
 # import pprint
 import httpx
-import asyncio
 import arrow
 
 from textwrap import dedent

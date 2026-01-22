@@ -1,10 +1,7 @@
-#import asyncio
 import os
 from dotenv import dotenv_values
-from discord.ext import commands
 import discord
-#from pprint import pprint
-#from gcalendar.service import CalendarService
+from pprint import pprint
 
 
 class MchBot(discord.Bot):
@@ -12,13 +9,16 @@ class MchBot(discord.Bot):
         super().__init__()
 
     def load_commands(self):
-        for filename in os.listdir("commands"):
+        for filename in os.listdir("mchlectures/commands"):
             if filename.endswith(".py"):
-                self.load_extension(f"commands.{filename[:-3]}")
+                self.load_extension(f"mchlectures.commands.{filename[:-3]}")
             
     async def on_connect(self):
         self.load_commands()
         await super().on_connect()
+
+    async def on_ready(self):
+        print('bot ready')
 
 
 if __name__ == '__main__':
