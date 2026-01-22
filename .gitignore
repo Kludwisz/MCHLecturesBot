@@ -2,3 +2,5 @@
 **/service_account.json
 **/__pycache__
 *.png
+
+uv.lock

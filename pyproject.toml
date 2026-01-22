@@ -1,0 +1,9 @@
+[project]
+name = "mchlecturesbot"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = "==3.13.11"
+dependencies = [
+    "py-cord>=2.7.0",
+    "python-dotenv>=1.2.1",
+]
