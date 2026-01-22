@@ -43,12 +43,20 @@ class CalendarService:
             'month': lambda: (snap_to_day_start(arrow.now()), arrow.now().shift(months=1)),
             '2-months': lambda: (snap_to_day_start(arrow.now()), arrow.now().shift(months=2))
         }
+        CELL_SIZES = {
+            'this-week': None,
+            'week': None,
+            'month': (120, 120),
+            '2-month': (120, 100)
+        }
         if not scope in AVAILABLE_SCOPES.keys():
             raise ValueError(f'illegal calendar scope: {scope}')
         
         start, end = AVAILABLE_SCOPES[scope]()
-        #print(start.isoformat(), end.isoformat())
-        await self.renderer.render(start, end, filename)
+        if CELL_SIZES[scope] is not None:
+            await self.renderer.render(start, end, filename, *CELL_SIZES[scope])
+        else:
+            await self.renderer.render(start, end, filename)
         
     async def get_upcoming_lectures(self, limit: int = 1) -> list[Lecture]:
         """

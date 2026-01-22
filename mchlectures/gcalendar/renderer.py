@@ -89,7 +89,10 @@ def last_modified(lectures_json) -> arrow.Arrow:
 
 
 class Renderer:
-    def __init__(self, calendar: Calendar, cell_width=CELL_WIDTH_PX, cell_height=CELL_HEIGHT_PX):
+    def __init__(self, calendar: Calendar):
+        self.cell_width = CELL_WIDTH_PX
+        self.cell_height = CELL_HEIGHT_PX
+
         self.calendar: Calendar = calendar
         self.cache: list[tuple[str, Image.Image]] = []  # simple LRU cache
         self.MAX_CACHE_SIZE = 5
@@ -108,8 +111,8 @@ class Renderer:
         hour_height = bbox_hour[3] - bbox_hour[1] + 2*P
 
         # calculate text bounding box & surrounding rect bounding box
-        writable_width = CELL_WIDTH_PX - 4 * P
-        writable_height = CELL_HEIGHT_PX - hour_height - 6*P
+        writable_width = self.cell_width - 4 * P
+        writable_height = self.cell_height - hour_height - 6*P
 
         bbox_summary = FONT_P.getbbox(lecture.title)
         line_height = P + bbox_summary[3] - bbox_summary[1]
@@ -117,7 +120,7 @@ class Renderer:
         multiline_text = wrap_text_to_fit(lecture.title, FONT_P, writable_width, max_lines)
         mbb = drawer.multiline_textbbox((0,0), multiline_text, FONT_P)
         total_height = mbb[3] - mbb[1] + 3*P + hour_height
-        rect_bb = [x+P, y+day_height, x+CELL_WIDTH_PX - P, y+day_height + total_height]
+        rect_bb = [x+P, y+day_height, x+self.cell_width - P, y+day_height + total_height]
         text_pos = [rect_bb[0]+P, rect_bb[1]+P]
 
         # draw 
@@ -125,9 +128,8 @@ class Renderer:
         drawer.text((x + writable_width//2 - hour_width//2 + 2*P, y+day_height + P), time_text, LECTURE_TEXT_COLOR, FONT_H2)
         drawer.text((text_pos[0], text_pos[1]+hour_height), multiline_text, LECTURE_TEXT_COLOR, FONT_P)
 
-
     def _render_day(self, drawer: ImageDraw.ImageDraw, lecture_data: list[Lecture], day_of_week, week, base_date: arrow.Arrow, darker=False):
-        W, H = CELL_WIDTH_PX, CELL_HEIGHT_PX
+        W, H = self.cell_width, self.cell_height
         xmin, ymin = day_of_week * W, week * H + HEADER_HEIGHT_PX
         
         # outline, day number
@@ -141,7 +143,10 @@ class Renderer:
             if lecture.start_time.date() == base_date.date():
                 self._render_lecture(drawer, lecture, xmin, ymin + 2*PADDING)
 
-    async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, filepath: str):
+    async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, filepath: str, cell_width=CELL_WIDTH_PX, cell_height=CELL_HEIGHT_PX):
+        self.cell_width=cell_width
+        self.cell_height=cell_height
+
         # find first Monday before target date and first Sunday after last date
         cal_start = snap_to_day_start(start_date.shift(days=(-start_date.isoweekday() + 1)))
         cal_end = snap_to_day_start(end_date.shift(days=(-end_date.isoweekday() + 7))).shift(days=1, seconds=-1)
@@ -161,7 +166,7 @@ class Renderer:
                 return
         
         n_weeks = ((cal_end - cal_start).days + 1) // 7
-        img = Image.new("RGB", (7*CELL_WIDTH_PX, n_weeks*CELL_HEIGHT_PX + HEADER_HEIGHT_PX), BACKGROUND_COLOR)
+        img = Image.new("RGB", (7*self.cell_width, n_weeks*self.cell_height + HEADER_HEIGHT_PX), BACKGROUND_COLOR)
         
         # table header
         drawer = ImageDraw.Draw(img)
@@ -171,7 +176,7 @@ class Renderer:
             day_name = DAY_NAMES[day][:3]
             text_w = FONT_H0.getlength(day_name)
             drawer.text(
-                (CELL_WIDTH_PX//2 - text_w//2 + (day-1) * CELL_WIDTH_PX, HEADER_HEIGHT_PX - text_h - 3*PADDING), 
+                (self.cell_width//2 - text_w//2 + (day-1) * self.cell_width, HEADER_HEIGHT_PX - text_h - 3*PADDING), 
                 day_name, DAY_TEXT_COLOR, FONT_H0
             )
         # days
