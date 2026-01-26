@@ -81,6 +81,15 @@ class CalendarService:
         :param data: The data of the requested lecture
         :type data: Lecture
         """
+        CONFLICT_THRESHOLD = 1  # days
+
+        # first api call to find conflicting lectures, if there are any this method will throw
+        filter_start = data.start_time.shift(days=-CONFLICT_THRESHOLD)
+        filter_end = data.start_time.shift(days=CONFLICT_THRESHOLD)
+        potential_conflicts = await self.calendar_client.get_event_list(timeMin=filter_start, timeMax=filter_end)
+        if len(potential_conflicts["items"]) != 0:
+            raise ValueError("lectures can't be scheduled within 24 hours of other lectures")
+
         await self.calendar_client.create_event(data)
 
     

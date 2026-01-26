@@ -55,7 +55,6 @@ class LectureModal(discord.ui.Modal):
                 )
             )
             await self.service.create_new_lecture(new_lecture)
-
             await interaction.response.send_message(f"Lecture **\"{new_lecture.title}\"** scheduled successfully!", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
@@ -101,7 +100,7 @@ class LectureManagerView(View):
         embed.add_field(name="Format", value=lecture.extended_properties.lecture_format, inline=True)
         
         desc = lecture.extended_properties.description
-        embed.add_field(name="Opis", value=(desc[:500] + '...') if len(desc) > 500 else desc, inline=False)
+        embed.add_field(name="Description", value=(desc[:500] + '...') if len(desc) > 500 else desc, inline=False)
         
         return embed
 
