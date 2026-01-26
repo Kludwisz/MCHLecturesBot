@@ -47,7 +47,7 @@ class CalendarService:
             'this-week': None,
             'week': None,
             'month': (120, 120),
-            '2-month': (120, 100)
+            '2-months': (120, 100)
         }
         if not scope in AVAILABLE_SCOPES.keys():
             raise ValueError(f'illegal calendar scope: {scope}')
@@ -58,7 +58,7 @@ class CalendarService:
         else:
             await self.renderer.render(start, end, filename)
         
-    async def get_upcoming_lectures(self, limit: int = 1, query_text: str = None) -> list[Lecture]:
+    async def get_upcoming_lectures(self, limit: int = 1, userid: str = None, query_text: str = None) -> list[Lecture]:
         """
         :param limit: the maximum number of upcoming lectures (must be positive). Default 1.
         :return: list of at most `limit` lectures that are either currently in progress or will happen in the future, sorted by the event start time.
@@ -68,7 +68,7 @@ class CalendarService:
         
         t_now = arrow.now()
         search_start = t_now.shift(days=-1)  # to handle in-progress events
-        data = await self.calendar_client.get_event_list(timeMin=search_start, query_text=query_text)
+        data = await self.calendar_client.get_event_list(timeMin=search_start, discord_userid=userid, query_text=query_text)
         lectures = [Lecture.from_json(item) for item in data["items"]]
         for i in range(len(lectures)):
             end = lectures[i].start_time.shift(minutes=lectures[i].duration_minutes)
@@ -76,6 +76,11 @@ class CalendarService:
                 return lectures[i:min(i+limit, len(lectures))]
         return []
 
-
+    async def create_new_lecture(self, data: Lecture):
+        """
+        :param data: The data of the requested lecture
+        :type data: Lecture
+        """
+        await self.calendar_client.create_event(data)
 
     

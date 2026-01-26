@@ -1,6 +1,6 @@
 import dataclasses
 
-# import pprint
+from pprint import pprint
 import httpx
 import arrow
 
@@ -110,7 +110,7 @@ class Calendar:
 
     async def get_event_list(self, discord_userid=None, timeMin: arrow.Arrow = None, timeMax: arrow.Arrow = None, query_text: str = None):
         private_property_filters = []
-        params = {}
+        params = {"singleEvents": "True", "orderBy": "startTime"}
         if discord_userid:
             private_property_filters.append(f"discord_userid={discord_userid}")
         if timeMin:
@@ -121,9 +121,10 @@ class Calendar:
             params["q"] = query_text
 
         if private_property_filters:
-            params["privateExtendedProperty"] = "&".join(private_property_filters) + "&singleEvents=True&orderBy=startTime"
+            params["privateExtendedProperty"] = "&".join(private_property_filters)
         url = f"https://www.googleapis.com/calendar/v3/calendars/{self.id}/events"
         response = await self.client.get(url, params=params)
+        pprint(response.json())
         return response.json()
 
     async def update_event(self, lecture: Lecture):
