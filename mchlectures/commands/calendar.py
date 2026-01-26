@@ -1,5 +1,5 @@
 from mchlectures.gcalendar.service import CalendarService
-from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS
+from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS_SHORT
 from mchlectures.commands.util.bot_errors import *
 
 import discord
@@ -10,21 +10,12 @@ from enum import Enum
 from textwrap import dedent
 
 
-class LectureModal(discord.ui.DesignerModal):
-    def __init__(self, service: CalendarService, *args, **kwargs):
+class LectureModalPart2ElectricBoogaloo(discord.ui.DesignerModal):
+    def __init__(self, service: CalendarService, first_modal: discord.ui.DesignerModal, *args, **kwargs):
         super().__init__(title="Lecture details", *args, **kwargs)
         self.service = service
+        self.first_modal = first_modal
 
-        title_input = discord.ui.InputText(
-            placeholder="E.g. Strings in Python"
-        )
-        recording_perms_input = discord.ui.Select(
-            options=[discord.SelectOption(emoji="", label=RECORDING_PERMS[k], value=k) for k in RECORDING_PERMS.keys()]
-        )
-        datetime_input = discord.ui.InputText(
-           placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
-           min_length=16, max_length=16
-        )
         format_input = discord.ui.InputText(
             placeholder="E.g. whiteboard presentation",
             max_length=50
@@ -33,28 +24,29 @@ class LectureModal(discord.ui.DesignerModal):
             style=discord.InputTextStyle.long,
             placeholder="Type a short description of your lecture here..."
         )
+        knowledge_input = discord.ui.InputText(
+            style=discord.InputTextStyle.long,
+            placeholder="What do participants need to know to enjoy your lecture?"
+        )
 
-        self.add_item(discord.ui.Label("Title", item=title_input))
-        self.add_item(discord.ui.Label("Date & time", item=datetime_input))
         self.add_item(discord.ui.Label("Lecture format", item=format_input))
-        self.add_item(discord.ui.Label("Recording permissions", item=recording_perms_input))
         self.add_item(discord.ui.Label("Lecture description", item=description_input))
+        self.add_item(discord.ui.Label("Recommended prior knowledge", item=knowledge_input))
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            start_time = arrow.get(self.children[1].value, "DD.MM.YYYY HH:mm")
-            
+            start_time = arrow.get(self.first_modal.children[1].value, "DD.MM.YYYY HH:mm")
             new_lecture = Lecture(
-                title=self.children[0].value,
+                title=self.first_modal.children[0].value,
                 start_time=start_time,
-                duration_minutes=90,
+                duration_minutes=int(self.first_modal.children[2].value),
                 extended_properties=ExtendedProperties(
                     discord_userid=str(interaction.user.id),
                     discord_username=interaction.user.display_name,
-                    recording_perms='NO_RECORDING',
-                    lecture_format=self.children[2].value,
-                    description=self.children[3].value,
-                    prior_knowledge='None'
+                    recording_perms=self.first_modal.children[3],
+                    lecture_format=self.children[0].value,
+                    description=self.children[1].value,
+                    prior_knowledge=self.children[2].value
                 )
             )
             await self.service.create_new_lecture(new_lecture)
@@ -62,6 +54,49 @@ class LectureModal(discord.ui.DesignerModal):
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
+
+class LectureModal(discord.ui.DesignerModal):
+    def __init__(self, service: CalendarService, *args, **kwargs):
+        super().__init__(title="Lecture details", *args, **kwargs)
+        self.service = service
+
+        title_input = discord.ui.InputText(
+            placeholder="E.g. Strings in Python"
+        )
+        datetime_input = discord.ui.InputText(
+           placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
+           min_length=16, max_length=16
+        )
+        minutes_duration_input = discord.ui.Select(
+            options=[
+                discord.SelectOption(label=f"{m} minutes", value=str(m)) for m in [
+                    30, 45, 60, 75, 90, 120
+                ]
+            ]
+        )
+        recording_perms_input = discord.ui.Select(
+            options=[
+                discord.SelectOption(label=RECORDING_PERMS_SHORT[k], value=k) for k in RECORDING_PERMS_SHORT.keys()
+            ]
+        )
+
+        self.add_item(discord.ui.Label("Title", item=title_input))
+        self.add_item(discord.ui.Label("Date & time", item=datetime_input))
+        self.add_item(discord.ui.Label("Duration", item=minutes_duration_input))
+        self.add_item(discord.ui.Label("Recording permissions", item=recording_perms_input))
+
+    async def callback(self, interaction: discord.Interaction):
+        view = View()
+        button = Button(label="Almost done! Click here to continue...", style=discord.ButtonStyle.green)
+        view.add_item(button)
+
+        async def button_callback(interaction: discord.Interaction):
+            modal = LectureModalPart2ElectricBoogaloo(service=self.service, first_modal=self)
+            await interaction.response.send_modal(modal)
+        button.callback = button_callback
+
+        await interaction.respond(view=view)
+        
 
 class LectureManagerView(View):
     def __init__(self, lectures: list[Lecture], user: discord.User, service: CalendarService):

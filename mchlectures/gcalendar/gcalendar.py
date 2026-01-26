@@ -16,6 +16,13 @@ RECORDING_PERMS = {
     'ALL_RECORDING_OK': 'The host has permitted all participants to record and share the recording of this lecture freely. It will also be made available on the MC@H Lectures channel.',
     'CUSTOM': 'Custom permissions, see extra properties'
 }
+RECORDING_PERMS_SHORT = {
+    'NO_RECORDING': 'All recording of my lecture is forbidden.',
+    'MCH_UNLISTED_RECORDING': 'My lecture will be recorded & UNLISTED in the MC@H lectures channel.',
+    'MCH_PUBLIC_RECORDING': 'My lecture will be recorded & PUBLISHED in the MC@H lectures channel.',
+    'ALL_RECORDING_OK': 'Everyone can record my lecture, and it will also be public in MC@H lectures.',
+    'CUSTOM': 'I want to write my own license.'
+}
 
 
 @dataclasses.dataclass
@@ -124,7 +131,7 @@ class Calendar:
             params["privateExtendedProperty"] = "&".join(private_property_filters)
         url = f"https://www.googleapis.com/calendar/v3/calendars/{self.id}/events"
         response = await self.client.get(url, params=params)
-        pprint(response.json())
+        #pprint(response.json())
         return response.json()
 
     async def update_event(self, lecture: Lecture):
