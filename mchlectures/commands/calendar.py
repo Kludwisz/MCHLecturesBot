@@ -29,30 +29,39 @@ class Calendar(discord.Cog):
         file = discord.File("calendar.png")
         embed = discord.Embed(title=f"Lecture calendar")
         embed.set_image(url="attachment://calendar.png")
+        embed.add_field(name="Full calendar:", value="<https://kludwisz.github.io/MCHLecturesBot/>", inline=False)
         
         await ctx.respond(embed=embed, file=file)
 
     @discord.slash_command(name="upcoming_lectures", description="Returns a list of N upcoming lectures")
-    @discord.option(name="limit", default=1, type=int)
-    async def upcoming_lectures(self, ctx: discord.ApplicationContext, limit: int):
+    @discord.option(name="limit", default=3, type=int)
+    @discord.option(name="query_text", default='', type=str, required=False)
+    async def upcoming_lectures(self, ctx: discord.ApplicationContext, limit: int, query_text: str):
         try:
-            lectures = await self.calendar_service.get_upcoming_lectures(limit)
+            lectures = await self.calendar_service.get_upcoming_lectures(limit, query_text=query_text)
             list_embed = discord.Embed(title="Upcoming lectures", color=discord.Color.og_blurple())
             for lecture in lectures:
                 end = lecture.start_time.shift(minutes=lecture.duration_minutes)
-                lecture_now = "RIGHT NOW! " if arrow.now().is_between(lecture.start_time.shift(days=-7), end) else ""
+                lecture_now = "RIGHT NOW! " if arrow.now().is_between(lecture.start_time, end) else ""
                 date_text = f"{lecture_now}<t:{int(lecture.start_time.timestamp())}:F>"
-                lecturer = await ctx.interaction.client.fetch_user(414097996956041236)
+                #lecturer = await ctx.interaction.client.fetch_user(414097996956041236)
+                lecturer_userid = 414097996956041236
                 text_contents = dedent(f"""
                                         > "{lecture.title}"
-                                        > {lecture.duration_minutes} minute lecture by {lecturer.display_name}
+                                        > {lecture.duration_minutes} minute lecture by <@{lecturer_userid}>
                                         """)
                 
                 list_embed.add_field(name=date_text, value=text_contents, inline=False)
+
+            list_embed.add_field(name="Full calendar:", value="<https://kludwisz.github.io/MCHLecturesBot/>", inline=False)
             await ctx.respond(embed=list_embed)
 
         except ValueError:
             await ctx.respond(embed=invalid_arg_error(message=f"limit={limit}"))
+
+    @discord.slash_command(name="my_lectures", description="Opens an interactive lecture management UI")
+    async def my_lectures(self, ctx: discord.ApplicationContext):
+        pass
 
 
 def setup(bot: discord.Bot):
