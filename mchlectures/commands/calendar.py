@@ -1,5 +1,5 @@
 from mchlectures.gcalendar.service import CalendarService
-from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties
+from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS
 from mchlectures.commands.util.bot_errors import *
 
 import discord
@@ -10,32 +10,35 @@ from enum import Enum
 from textwrap import dedent
 
 
-class LectureModal(discord.ui.Modal):
+class LectureModal(discord.ui.DesignerModal):
     def __init__(self, service: CalendarService, *args, **kwargs):
         super().__init__(title="Lecture details", *args, **kwargs)
         self.service = service
 
-        self.add_item(discord.ui.InputText(
-            label="Title", 
-            placeholder="E.g. Strings in Python",
-            min_length=3, max_length=100
-        ))
-        self.add_item(discord.ui.InputText(
-            label="Date & time", 
-            placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
-            min_length=16, max_length=16
-        ))
-        self.add_item(discord.ui.InputText(
-            label="Format", 
+        title_input = discord.ui.InputText(
+            placeholder="E.g. Strings in Python"
+        )
+        recording_perms_input = discord.ui.Select(
+            options=[discord.SelectOption(emoji="", label=RECORDING_PERMS[k], value=k) for k in RECORDING_PERMS.keys()]
+        )
+        datetime_input = discord.ui.InputText(
+           placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
+           min_length=16, max_length=16
+        )
+        format_input = discord.ui.InputText(
             placeholder="E.g. whiteboard presentation",
             max_length=50
-        ))
-        self.add_item(discord.ui.InputText(
-            label="Description", 
+        )
+        description_input = discord.ui.InputText(
             style=discord.InputTextStyle.long,
-            placeholder="Type a short description of your lecture here...",
-            max_length=1000
-        ))
+            placeholder="Type a short description of your lecture here..."
+        )
+
+        self.add_item(discord.ui.Label("Title", item=title_input))
+        self.add_item(discord.ui.Label("Date & time", item=datetime_input))
+        self.add_item(discord.ui.Label("Lecture format", item=format_input))
+        self.add_item(discord.ui.Label("Recording permissions", item=recording_perms_input))
+        self.add_item(discord.ui.Label("Lecture description", item=description_input))
 
     async def callback(self, interaction: discord.Interaction):
         try:
@@ -62,7 +65,7 @@ class LectureModal(discord.ui.Modal):
 
 class LectureManagerView(View):
     def __init__(self, lectures: list[Lecture], user: discord.User, service: CalendarService):
-        super().__init__(timeout=120)
+        super().__init__(timeout=120, disable_on_timeout=True)
         self.lectures = lectures
         self.service = service
         self.user = user
