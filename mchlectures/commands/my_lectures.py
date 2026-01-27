@@ -96,6 +96,8 @@ class LectureDetailsModal(DesignerModal):
     format_input: InputText = None
     description_input: InputText = None
     knowledge_input: InputText = None
+    recording_perms_input: discord.ui.Select = None
+    custom_perms_input: InputText = None
     
     def __init__(self, view: View, *args, **kwargs):
         super().__init__(title="Edit lecture details", *args, **kwargs)
@@ -120,14 +122,35 @@ class LectureDetailsModal(DesignerModal):
             placeholder="What do participants need to know to enjoy your lecture?"
         )
 
+        selected_perms = view.new_lecture_data["recording_perms"]
+        self.recording_perms_input = discord.ui.Select(
+            options=[
+                discord.SelectOption(
+                    label=RECORDING_PERMS_SHORT[k], 
+                    value=k,
+                    default=(k == selected_perms)
+                ) for k in RECORDING_PERMS_SHORT.keys()
+            ]
+        )
+        self.custom_perms_input = InputText(
+            style=discord.InputTextStyle.long,
+            value=(None if view.new_lecture_data["custom_recording_perms"] == "" else view.new_lecture_data["custom_recording_perms"]),
+            required=False,
+            placeholder="(If applicable) specify recording license for your lecture."
+        )
+
         self.add_item(Label("Lecture format", item=self.format_input))
         self.add_item(Label("Lecture description", item=self.description_input))
         self.add_item(Label("Recommended prior knowledge", item=self.knowledge_input))
+        self.add_item(Label("Recording permissions", item=self.recording_perms_input))
+        self.add_item(Label("Custom recording permissions", item=self.custom_perms_input))
 
     async def callback(self, interaction: discord.Interaction):
         self.view.new_lecture_data["format"] = self.format_input.value
         self.view.new_lecture_data["description"] = self.description_input.value
         self.view.new_lecture_data["prior_knowledge"] = self.knowledge_input.value
+        self.view.new_lecture_data["recording_perms"] = self.recording_perms_input.values[0]
+        self.view.new_lecture_data["custom_recording_perms"] = self.custom_perms_input.value
         await interaction.response.edit_message(view=self.view, embed=self.view.create_embed())
 
 
@@ -137,7 +160,7 @@ class LectureBasicInfoModal(DesignerModal):
     title_input: InputText = None
     datetime_input: InputText = None
     duration_minutes_input: discord.ui.Select = None
-    recording_perms_input: discord.ui.Select = None
+    
 
     def __init__(self, view: View, *args, **kwargs):
         super().__init__(title="Edit lecture information", *args, **kwargs)
@@ -164,27 +187,15 @@ class LectureBasicInfoModal(DesignerModal):
             ]
         )
 
-        selected_perms = view.new_lecture_data["recording_perms"]
-        self.recording_perms_input = discord.ui.Select(
-            options=[
-                discord.SelectOption(
-                    label=RECORDING_PERMS_SHORT[k], 
-                    value=k,
-                    default=(k == selected_perms)
-                ) for k in RECORDING_PERMS_SHORT.keys()
-            ]
-        )
-
         self.add_item(discord.ui.Label("Title", item=self.title_input))
         self.add_item(discord.ui.Label("Date & time", item=self.datetime_input))
         self.add_item(discord.ui.Label("Duration", item=self.duration_minutes_input))
-        self.add_item(discord.ui.Label("Recording permissions", item=self.recording_perms_input))
+        
 
     async def callback(self, interaction: discord.Interaction):
         self.view.new_lecture_data["title"] = self.title_input.value
         self.view.new_lecture_data["start_date"] = self.datetime_input.value
         self.view.new_lecture_data["duration_minutes"] = self.duration_minutes_input.values[0]
-        self.view.new_lecture_data["title"] = self.title_input.value
         self.view.update_buttons()
 
         await interaction.response.edit_message(view=self.view, embed=self.view.create_embed())
@@ -201,6 +212,7 @@ class LectureCreateView(PrivateView):
         "start_date": "",
         "duration_minutes": "60",
         "recording_perms": "NO_RECORDING",
+        "custom_recording_perms": "",
         "format": "",
         "description": "",
         "prior_knowledge": ""

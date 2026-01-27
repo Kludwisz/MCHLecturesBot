@@ -21,7 +21,7 @@ RECORDING_PERMS_SHORT = {
     'MCH_UNLISTED_RECORDING': 'My lecture will be recorded & UNLISTED in the MC@H lectures channel.',
     'MCH_PUBLIC_RECORDING': 'My lecture will be recorded & PUBLISHED in the MC@H lectures channel.',
     'ALL_RECORDING_OK': 'Everyone can record my lecture, and it will also be public in MC@H lectures.',
-    'CUSTOM': 'I want to write my own license.'
+    'CUSTOM': 'I want to write a custom license.'
 }
 
 
