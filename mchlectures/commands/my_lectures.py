@@ -352,7 +352,7 @@ class LectureManagerView(PrivateView):
     @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green)
     async def schedule_new(self, button: Button, interaction: discord.Interaction):
         view = LectureCreateView(self.user, self.service)
-        interaction.response.edit_message(embed=view.create_embed(), view=view)
+        await interaction.response.edit_message(embed=view.create_embed(), view=view)
 
     @discord.ui.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
     async def edit_lecture(self, button: Button, interaction: discord.Interaction):
