@@ -1,29 +1,3 @@
-'''
-Views & modals available in /my_lectures:
-
-base command (read)
-- view #1: pages of lecture data, with nav buttons and buttons linking to C,U,D functionalities (done)
-
-new lecture flow (create):
-- modal #1: fill in first set of fields -> submit
-- view #2: display filled-in data, button to edit that data, fill in remaining stuff, cancel
-- if edit go back to modal #1
-- if continue modal #2 -> submit
-- view #3: success / failure
-
-modify lecture flow (update):
-- view #4: display details, button to edit basic info, button to edit details, button to cancel, button to save
-- if edit basic info: modal #1
-- if edit details: modal #2
-- if cancel: back to view #1
-- if save: view #3 (operation can fail if lecture conflict for example)
-
-cancel lecture flow (delete):
-- view #5: "Are you sure you want to cancel", button "Keep lecture", button "Cancel lecture"
-- if keep: back to view #1
-- if cancel: invoke api call -> view #3 (i guess this operation could fail too)
-'''
-
 from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties
 from mchlectures.gcalendar.gcalendar import RECORDING_PERMS_SHORT, RECORDING_PERMS
 from mchlectures.gcalendar.service import CalendarService
@@ -47,11 +21,6 @@ class PrivateView(View):
             )
             return False
         return True
-
-# -------------------------------------------------------------------
-# View 3
-class OperationStatusView(View):
-    pass
 
 
 # -------------------------------------------------------------------
@@ -82,12 +51,6 @@ class LectureCancelConfirmationView(PrivateView):
             await interaction.response.edit_message(embed=self.nav["main"].create_embed(), view=self.nav["main"])
         except Exception as e:
             await interaction.respond(embed=error(message=f"Something went wrong while deleting the lecture: {e}"))
-
-
-# -------------------------------------------------------------------
-# View 4
-class LectureModificationView(PrivateView):
-    pass
 
 
 # -------------------------------------------------------------------
@@ -161,7 +124,6 @@ class LectureBasicInfoModal(DesignerModal):
     datetime_input: InputText = None
     duration_minutes_input: discord.ui.Select = None
     
-
     def __init__(self, view: View, *args, **kwargs):
         super().__init__(title="Edit lecture information", *args, **kwargs)
         self.view = view
@@ -202,32 +164,20 @@ class LectureBasicInfoModal(DesignerModal):
 
 
 # -------------------------------------------------------------------
-# View 2
-class LectureCreateView(PrivateView):
-    basic_info_modal: LectureBasicInfoModal = None
-    details_modal: LectureDetailsModal = None
-
-    new_lecture_data: dict[str, str] = {
-        "title": "",
-        "start_date": "",
-        "duration_minutes": "60",
-        "recording_perms": "NO_RECORDING",
-        "custom_recording_perms": "",
-        "format": "",
-        "description": "",
-        "prior_knowledge": ""
-    }
+# Shared view for creating & editing lectures
+class LectureUpdateBaseView(PrivateView):
+    embed_color: discord.Color
+    embed_title: str
 
     def __init__(self, user: discord.User, service: CalendarService):
         super().__init__(timeout=120, disable_on_timeout=True)
         self.service = service
         self.user = user
-        self.update_buttons()
 
     def create_embed(self) -> discord.Embed:
         embed = discord.Embed(
-            title="New lecture",
-            color=discord.Color.green()
+            title=self.embed_title,
+            color=self.embed_color
         )
         embed.add_field(name="Lecture title (required)", value=self.new_lecture_data["title"], inline=False)
         embed.add_field(name="Date & time (required)", value=self.new_lecture_data["start_date"], inline=True)
@@ -259,14 +209,35 @@ class LectureCreateView(PrivateView):
     @discord.ui.button(label="Edit basic info", style=discord.ButtonStyle.primary)
     async def edit_basic(self, button: Button, interaction: discord.Interaction):
         modal = LectureBasicInfoModal(self)
-        self.basic_info_modal = modal
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Edit details", style=discord.ButtonStyle.primary)
     async def edit_details(self, button: Button, interaction: discord.Interaction):
         modal = LectureDetailsModal(self)
-        self.details_modal = modal
         await interaction.response.send_modal(modal)
+
+# -------------------------------------------------------------------
+# View 2
+class LectureCreateView(LectureUpdateBaseView):
+    new_lecture_data: dict[str, str] = {
+        "title": "",
+        "start_date": "",
+        "duration_minutes": "60",
+        "recording_perms": "NO_RECORDING",
+        "custom_recording_perms": "",
+        "format": "",
+        "description": "",
+        "prior_knowledge": ""
+    }
+
+    def __init__(self, user: discord.User, service: CalendarService):
+        super().__init__(user, service)
+        self.embed_color = discord.Color.green()
+        self.embed_title = "New lecture"
+
+        self.service = service
+        self.user = user
+        self.update_buttons()
 
     @discord.ui.button(label="Create lecture", style=discord.ButtonStyle.gray)
     async def save_data(self, button: Button, interaction: discord.Interaction):
@@ -297,6 +268,59 @@ class LectureCreateView(PrivateView):
 
 
 # -------------------------------------------------------------------
+# View 4
+class LectureModificationView(LectureUpdateBaseView):
+    def __init__(self, user: discord.User, lecture: Lecture, service: CalendarService):
+        super().__init__(timeout=120, disable_on_timeout=True)
+        self.embed_title = "Edit lecture"
+        self.embed_color = discord.Color.blurple()
+
+        self.service = service
+        self.user = user
+        self.lecture = lecture
+        self.new_lecture_data: dict[str, str] = {
+            "title": lecture,
+            "start_date": lecture.start_time.format("DD.MM.YYYY HH:mm"),
+            "duration_minutes": str(lecture.duration_minutes),
+            "recording_perms": lecture.extended_properties.recording_perms,
+            "custom_recording_perms": lecture.extended_properties.custom_perms,
+            "format": lecture.extended_properties.lecture_format,
+            "description": lecture.extended_properties.description,
+            "prior_knowledge": lecture.extended_properties.prior_knowledge
+        }
+        self.update_buttons()
+
+    @discord.ui.button(label="Save changes", style=discord.ButtonStyle.gray)
+    async def save_data(self, button: Button, interaction: discord.Interaction):
+        try:
+            start_time = arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
+
+            new_lecture = Lecture(
+                id=self.lecture.id,
+                title = self.new_lecture_data["title"],
+                start_time = start_time,
+                duration_minutes = int(self.new_lecture_data["duration_minutes"]),
+                extended_properties = ExtendedProperties(
+                    discord_userid = self.lecture.extended_properties.discord_userid,
+                    discord_username = self.lecture.extended_properties.discord_username,
+                    recording_perms = self.new_lecture_data["recording_perms"],
+                    lecture_format = self.new_lecture_data["format"],
+                    description = self.new_lecture_data["description"],
+                    prior_knowledge = self.new_lecture_data["prior_knowledge"],
+                    custom_perms = self.new_lecture_data["custom_recording_perms"]
+                )
+            )
+            
+            await self.service.update_lecture(new_lecture)
+            self.nav["main"].handle_lecture_cancelled(new_lecture.id)
+            self.nav["main"].handle_lecture_created(new_lecture)
+            await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+
+        except Exception as e:
+            await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
+
+
+# -------------------------------------------------------------------
 # View 1
 class LectureManagerView(PrivateView):
     def __init__(self, lectures: list[Lecture], user: discord.User, service: CalendarService):
@@ -311,7 +335,7 @@ class LectureManagerView(PrivateView):
             embed = discord.Embed(
                 title="Your lectures",
                 description="You currently don't have any lectures scheduled.",
-                color=discord.Color.blue()
+                color=discord.Color.dark_gold()
             )
             return embed
 

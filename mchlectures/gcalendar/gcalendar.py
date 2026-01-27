@@ -87,6 +87,9 @@ class Lecture:
         return Lecture(id=ident, extended_properties=ext_properties,
                        start_time=start, duration_minutes=duration, title=title)
 
+    def copy(self):
+        # I apologise.
+        return Lecture.from_json(self.to_json())
 
 class Calendar:
     def __init__(self, calendar_id, service_account_file):
