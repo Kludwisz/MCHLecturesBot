@@ -103,19 +103,19 @@ class LectureDetailsModal(DesignerModal):
 
         self.format_input = InputText(
             placeholder="E.g. whiteboard presentation",
-            value=(None if view.new_event_data["format"] == "" else view.new_event_data["format"]),
+            value=(None if view.new_lecture_data["format"] == "" else view.new_lecture_data["format"]),
             required=False,
             max_length=50
         )
         self.description_input = InputText(
             style=discord.InputTextStyle.long,
-            value=(None if view.new_event_data["description"] == "" else view.new_event_data["description"]),
+            value=(None if view.new_lecture_data["description"] == "" else view.new_lecture_data["description"]),
             required=False,
             placeholder="Type a short description of your lecture here..."
         )
         self.knowledge_input = InputText(
             style=discord.InputTextStyle.long,
-            value=(None if view.new_event_data["prior_knowledge"] == "" else view.new_event_data["prior_knowledge"]),
+            value=(None if view.new_lecture_data["prior_knowledge"] == "" else view.new_lecture_data["prior_knowledge"]),
             required=False,
             placeholder="What do participants need to know to enjoy your lecture?"
         )
@@ -125,9 +125,9 @@ class LectureDetailsModal(DesignerModal):
         self.add_item(Label("Recommended prior knowledge", item=self.knowledge_input))
 
     async def callback(self, interaction: discord.Interaction):
-        self.view.new_event_data["format"] = self.format_input.value
-        self.view.new_event_data["description"] = self.description_input.value
-        self.view.new_event_data["prior_knowledge"] = self.knowledge_input.value
+        self.view.new_lecture_data["format"] = self.format_input.value
+        self.view.new_lecture_data["description"] = self.description_input.value
+        self.view.new_lecture_data["prior_knowledge"] = self.knowledge_input.value
         await interaction.response.edit_message(view=self.view, embed=self.view.create_embed())
 
 
@@ -144,12 +144,12 @@ class LectureBasicInfoModal(DesignerModal):
         self.view = view
 
         self.title_input = discord.ui.InputText(
-            value=view.new_event_data["title"]
+            value=view.new_lecture_data["title"]
         )
 
         self.datetime_input = discord.ui.InputText(
             placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
-            value=(None if view.new_event_data["start_date"] == "" else view.new_event_data["start_date"]),
+            value=(None if view.new_lecture_data["start_date"] == "" else view.new_lecture_data["start_date"]),
             min_length=16, max_length=16
         )
 
@@ -160,14 +160,14 @@ class LectureBasicInfoModal(DesignerModal):
                 ]
             ]
         )
-        self.duration_minutes_input.values = [view.new_event_data["duration_minutes"]]
+        self.duration_minutes_input.values = [view.new_lecture_data["duration_minutes"]]
 
         self.recording_perms_input = discord.ui.Select(
             options=[
                 discord.SelectOption(label=RECORDING_PERMS_SHORT[k], value=k) for k in RECORDING_PERMS_SHORT.keys()
             ]
         )
-        self.duration_minutes_input.values = [view.new_event_data["recording_perms"]]
+        self.duration_minutes_input.values = [view.new_lecture_data["recording_perms"]]
 
         self.add_item(discord.ui.Label("Title", item=self.title_input))
         self.add_item(discord.ui.Label("Date & time", item=self.datetime_input))
@@ -175,10 +175,10 @@ class LectureBasicInfoModal(DesignerModal):
         self.add_item(discord.ui.Label("Recording permissions", item=self.recording_perms_input))
 
     async def callback(self, interaction: discord.Interaction):
-        self.view.new_event_data["title"] = self.title_input.value
-        self.view.new_event_data["start_date"] = self.datetime_input.value
-        self.view.new_event_data["duration_minutes"] = self.duration_minutes_input.values[0]
-        self.view.new_event_data["title"] = self.title_input.value
+        self.view.new_lecture_data["title"] = self.title_input.value
+        self.view.new_lecture_data["start_date"] = self.datetime_input.value
+        self.view.new_lecture_data["duration_minutes"] = self.duration_minutes_input.values[0]
+        self.view.new_lecture_data["title"] = self.title_input.value
         self.view.update_buttons()
 
         await interaction.response.edit_message(view=self.view, embed=self.view.create_embed())
