@@ -1,6 +1,6 @@
 from mchlectures.gcalendar.service import CalendarService
 from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS_SHORT
-from mchlectures.commands.bot_errors import *
+from mchlectures.commands.bot_utils import *
 from mchlectures.commands.my_lectures import LectureManagerView
 
 import discord
