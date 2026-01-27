@@ -33,6 +33,16 @@ import discord
 from discord.ui import DesignerModal, View, Button, InputText, Label
 
 
+class PrivateView(View):
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(
+                "You cannot interact with other user's interfaces. Use `/my_lectures` to open your own UI.", 
+                ephemeral=True
+            )
+            return False
+        return True
+
 # -------------------------------------------------------------------
 # View 3
 class OperationStatusView(View):
@@ -40,13 +50,23 @@ class OperationStatusView(View):
 
 # -------------------------------------------------------------------
 # View 5
-class LectureCancelConfirmationView(View):
+class LectureCancelConfirmationView(PrivateView):
+    pass
+
+# -------------------------------------------------------------------
+# View 2
+class LectureCreateIntermediateView(PrivateView):
     pass
 
 # -------------------------------------------------------------------
 # View 4
-class LectureModificationView(View):
-    pass
+class LectureModificationView(PrivateView):
+    def __init__(self, lecture: Lecture, user: discord.User, service: CalendarService):
+        super().__init__(timeout=120, disable_on_timeout=True)
+        self.lecture = lecture
+        self.service = service
+        self.user = user
+
 
 # -------------------------------------------------------------------
 # Modal 2
@@ -224,7 +244,7 @@ class LectureManagerView(View):
         self.update_buttons()
         await interaction.response.edit_message(embed=self.create_embed(), view=self)
 
-    @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green)
     async def schedule_new(self, button: Button, interaction: discord.Interaction):
         modal = LectureBasicInfoModal(service=self.service)
         await interaction.response.send_modal(modal)
