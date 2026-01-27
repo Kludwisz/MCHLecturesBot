@@ -142,7 +142,7 @@ class Calendar:
         url = f"https://www.googleapis.com/calendar/v3/calendars/{self.id}/events/{lecture.id}"
         response = await self.client.put(url, json=event)
         response.raise_for_status()
-        print("Event updated:", response.json())
+        #print("Event updated")
 
     async def delete_event(self, event_id):
         url = f"https://www.googleapis.com/calendar/v3/calendars/{self.id}/events/{event_id}"

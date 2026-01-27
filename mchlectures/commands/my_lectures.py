@@ -216,6 +216,7 @@ class LectureUpdateBaseView(PrivateView):
         modal = LectureDetailsModal(self)
         await interaction.response.send_modal(modal)
 
+
 # -------------------------------------------------------------------
 # View 2
 class LectureCreateView(LectureUpdateBaseView):
@@ -266,12 +267,16 @@ class LectureCreateView(LectureUpdateBaseView):
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
+    async def cancel(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+
 
 # -------------------------------------------------------------------
 # View 4
 class LectureModificationView(LectureUpdateBaseView):
     def __init__(self, user: discord.User, lecture: Lecture, service: CalendarService):
-        super().__init__(timeout=120, disable_on_timeout=True)
+        super().__init__(user, service)
         self.embed_title = "Edit lecture"
         self.embed_color = discord.Color.blurple()
 
@@ -279,7 +284,7 @@ class LectureModificationView(LectureUpdateBaseView):
         self.user = user
         self.lecture = lecture
         self.new_lecture_data: dict[str, str] = {
-            "title": lecture,
+            "title": lecture.title,
             "start_date": lecture.start_time.format("DD.MM.YYYY HH:mm"),
             "duration_minutes": str(lecture.duration_minutes),
             "recording_perms": lecture.extended_properties.recording_perms,
@@ -319,6 +324,9 @@ class LectureModificationView(LectureUpdateBaseView):
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
+    async def cancel(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
 
 # -------------------------------------------------------------------
 # View 1
@@ -345,7 +353,7 @@ class LectureManagerView(PrivateView):
         
         embed = discord.Embed(
             title=f"Manage lecture: {lecture.title}",
-            color=discord.Color.blue(),
+            color=discord.Color.dark_gold(),
             description=f"Page {self.page_index + 1} out of {len(self.lectures)}"
         )
         
@@ -410,7 +418,9 @@ class LectureManagerView(PrivateView):
     @discord.ui.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
     async def edit_lecture(self, button: Button, interaction: discord.Interaction):
         lecture = self.lectures[self.page_index]
-        await interaction.response.send_message(f"(update functionality not implemented)")
+        view = LectureModificationView(self.user, lecture, self.service)
+        view.nav["main"] = self
+        await interaction.response.edit_message(embed=view.create_embed(), view=view)
 
     @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
     async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
