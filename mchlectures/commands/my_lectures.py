@@ -197,29 +197,29 @@ class LectureManagerView(View):
         self.edit_lecture.disabled = not has_lectures
         self.cancel_lecture.disabled = not has_lectures
 
-    @discord.button(label="Previous page", style=discord.ButtonStyle.gray)
+    @discord.ui.button(label="Previous page", style=discord.ButtonStyle.gray)
     async def prev_page(self, button: Button, interaction: discord.Interaction):
         self.page_index -= 1
         self.update_buttons()
         await interaction.response.edit_message(embed=self.create_embed(), view=self)
 
-    @discord.button(label="Next page", style=discord.ButtonStyle.gray)
+    @discord.ui.button(label="Next page", style=discord.ButtonStyle.gray)
     async def next_page(self, button: Button, interaction: discord.Interaction):
         self.page_index += 1
         self.update_buttons()
         await interaction.response.edit_message(embed=self.create_embed(), view=self)
 
-    @discord.button(label="Schedule new lecture", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green, row=2)
     async def schedule_new(self, button: Button, interaction: discord.Interaction):
         modal = LectureBasicInfoModal(service=self.service)
         await interaction.response.send_modal(modal)
 
-    @discord.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
+    @discord.ui.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
     async def edit_lecture(self, button: Button, interaction: discord.Interaction):
         lecture = self.lectures[self.page_index]
         await interaction.response.send_message(f"(update functionality not implemented)")
 
-    @discord.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
+    @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
     async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
         lecture = self.lectures[self.page_index]
         await interaction.response.send_message(f"(delete functionality not implemented)")
