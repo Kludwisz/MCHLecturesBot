@@ -76,10 +76,11 @@ class CalendarService:
                 return lectures[i:min(i+limit, len(lectures))]
         return []
 
-    async def create_new_lecture(self, data: Lecture):
+    async def create_new_lecture(self, data: Lecture) -> str:
         """
         :param data: The data of the requested lecture
         :type data: Lecture
+        :return: the ID of the created lecture
         """
         CONFLICT_THRESHOLD = 1  # days
 
@@ -90,7 +91,7 @@ class CalendarService:
         if len(potential_conflicts["items"]) != 0:
             raise ValueError("lectures can't be scheduled within 24 hours of other lectures")
 
-        await self.calendar_client.create_event(data)
+        return await self.calendar_client.create_event(data)
 
     async def delete_lecture(self, lecture: Lecture):
         await self.calendar_client.delete_event(lecture.id)

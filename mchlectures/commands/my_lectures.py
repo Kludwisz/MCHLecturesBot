@@ -78,7 +78,7 @@ class LectureCancelConfirmationView(PrivateView):
     async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
         try:
             await self.service.delete_lecture(self.lecture)
-            self.nav["main"].handle_lecture_cancelled()
+            self.nav["main"].handle_lecture_cancelled(self.lecture.id)
             await interaction.response.edit_message(embed=self.nav["main"].create_embed(), view=self.nav["main"])
         except Exception as e:
             await interaction.respond(embed=error(message=f"Something went wrong while deleting the lecture: {e}"))
@@ -240,7 +240,7 @@ class LectureCreateView(PrivateView):
             arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
         except Exception as e:
             valid_data = False
-            
+
         self.save_data.disabled = not valid_data
         self.save_data.style = discord.ButtonStyle.green if valid_data else discord.ButtonStyle.gray
 
@@ -278,8 +278,11 @@ class LectureCreateView(PrivateView):
                     prior_knowledge = know
                 )
             )
-            await self.service.create_new_lecture(new_lecture)
-            await interaction.response.send_message(f"Lecture **\"{new_lecture.title}\"** scheduled successfully!", ephemeral=True)
+            lec_id = await self.service.create_new_lecture(new_lecture)
+            new_lecture.id = lec_id
+            self.nav["main"].handle_lecture_created(new_lecture)
+            await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+            
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
@@ -303,7 +306,7 @@ class LectureManagerView(PrivateView):
             )
             return embed
 
-        lecture = self.lectures[self.page_index]
+        lecture = self.lectures[min(self.page_index, len(self.lectures)-1)]
         #end_time = lecture.start_time.shift(minutes=lecture.duration_minutes)
         
         embed = discord.Embed(
@@ -345,6 +348,7 @@ class LectureManagerView(PrivateView):
             lec = self.lectures[i]
             if new_lecture.start_time.is_between(lec.start_time.shift(years=-1000), lec.start_time):
                 self.lectures.insert(i, new_lecture)
+                self.page_index = i
                 break
         self.lectures.append(new_lecture)
         self.update_buttons()
@@ -364,6 +368,7 @@ class LectureManagerView(PrivateView):
     @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green)
     async def schedule_new(self, button: Button, interaction: discord.Interaction):
         view = LectureCreateView(self.user, self.service)
+        view.nav["main"] = self
         await interaction.response.edit_message(embed=view.create_embed(), view=view)
 
     @discord.ui.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
