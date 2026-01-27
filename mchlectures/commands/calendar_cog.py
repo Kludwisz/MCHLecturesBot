@@ -1,6 +1,6 @@
 from mchlectures.gcalendar.service import CalendarService
 from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS_SHORT
-from mchlectures.commands.util.bot_errors import *
+from mchlectures.commands.bot_errors import *
 
 import discord
 from discord.ui import View, Button, button

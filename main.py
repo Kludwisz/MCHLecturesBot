@@ -10,7 +10,7 @@ class MchBot(discord.Bot):
 
     def load_commands(self):
         for filename in os.listdir("mchlectures/commands"):
-            if filename.endswith("cog.py"):
+            if filename.endswith("_cog.py"):
                 self.load_extension(f"mchlectures.commands.{filename[:-3]}")
             
     async def on_connect(self):
