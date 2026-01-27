@@ -51,45 +51,55 @@ class LectureModificationView(View):
 # -------------------------------------------------------------------
 # Modal 2
 class LectureDetailsModal(DesignerModal):
+    format_input: InputText = None
+    description_input: InputText = None
+    knowledge_input: InputText = None
+    
     def __init__(self, service: CalendarService, first_modal: DesignerModal, *args, **kwargs):
         super().__init__(title="Lecture details", *args, **kwargs)
         self.service = service
         self.first_modal = first_modal
 
-        format_input = InputText(
+        self.format_input = InputText(
             placeholder="E.g. whiteboard presentation",
             max_length=50
         )
-        description_input = InputText(
+        self.description_input = InputText(
             style=discord.InputTextStyle.long,
             placeholder="Type a short description of your lecture here..."
         )
-        knowledge_input = InputText(
+        self.knowledge_input = InputText(
             style=discord.InputTextStyle.long,
             placeholder="What do participants need to know to enjoy your lecture?"
         )
 
-        self.add_item(Label("Lecture format", item=format_input))
-        self.add_item(Label("Lecture description", item=description_input))
-        self.add_item(Label("Recommended prior knowledge", item=knowledge_input))
+        self.add_item(Label("Lecture format", item=self.format_input))
+        self.add_item(Label("Lecture description", item=self.description_input))
+        self.add_item(Label("Recommended prior knowledge", item=self.knowledge_input))
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            basic_info = self.first_modal.children
-            details = self.children
+            # print('data:')
+            # print(self.first_modal.title_input.value)
+            # print(self.first_modal.datetime_input.value)
+            # print(self.first_modal.duration_minutes_input.values[0])
+            # print(self.first_modal.recording_perms_input.values[0])
+            # print(self.format_input.value)
+            # print(self.description_input.value)
+            # print(self.knowledge_input.value)
 
-            start_time = arrow.get(basic_info[1].value, "DD.MM.YYYY HH:mm")
+            start_time = arrow.get(self.first_modal.datetime_input.value, "DD.MM.YYYY HH:mm")
             new_lecture = Lecture(
-                title = basic_info[0].value,
+                title = self.first_modal.title_input.value,
                 start_time = start_time,
-                duration_minutes = int(basic_info[2].value),
+                duration_minutes = int(self.first_modal.duration_minutes_input.values[0]),
                 extended_properties = ExtendedProperties(
                     discord_userid = str(interaction.user.id),
                     discord_username = interaction.user.display_name,
-                    recording_perms = basic_info[3],
-                    lecture_format = details[0].value,
-                    description = details[1].value,
-                    prior_knowledge = details[2].value
+                    recording_perms = self.first_modal.recording_perms_input.values[0],
+                    lecture_format = self.format_input.value,
+                    description = self.description_input.value,
+                    prior_knowledge = self.knowledge_input.value
                 )
             )
             await self.service.create_new_lecture(new_lecture)
@@ -101,34 +111,39 @@ class LectureDetailsModal(DesignerModal):
 # -------------------------------------------------------------------
 # Modal 1
 class LectureBasicInfoModal(DesignerModal):
+    title_input: InputText = None
+    datetime_input: InputText = None
+    duration_minutes_input: discord.ui.Select = None
+    recording_perms_input: discord.ui.Select = None
+
     def __init__(self, service: CalendarService, *args, **kwargs):
         super().__init__(title="Lecture information", *args, **kwargs)
         self.service = service
 
-        title_input = discord.ui.InputText(
+        self.title_input = discord.ui.InputText(
             placeholder="E.g. Strings in Python"
         )
-        datetime_input = discord.ui.InputText(
+        self.datetime_input = discord.ui.InputText(
            placeholder="DD.MM.YYYY HH:MM (e.g. 20.02.2026 18:00)",
            min_length=16, max_length=16
         )
-        minutes_duration_input = discord.ui.Select(
+        self.duration_minutes_input = discord.ui.Select(
             options=[
                 discord.SelectOption(label=f"{m} minutes", value=str(m)) for m in [
                     30, 45, 60, 75, 90, 120
                 ]
             ]
         )
-        recording_perms_input = discord.ui.Select(
+        self.recording_perms_input = discord.ui.Select(
             options=[
                 discord.SelectOption(label=RECORDING_PERMS_SHORT[k], value=k) for k in RECORDING_PERMS_SHORT.keys()
             ]
         )
 
-        self.add_item(discord.ui.Label("Title", item=title_input))
-        self.add_item(discord.ui.Label("Date & time", item=datetime_input))
-        self.add_item(discord.ui.Label("Duration", item=minutes_duration_input))
-        self.add_item(discord.ui.Label("Recording permissions", item=recording_perms_input))
+        self.add_item(discord.ui.Label("Title", item=self.title_input))
+        self.add_item(discord.ui.Label("Date & time", item=self.datetime_input))
+        self.add_item(discord.ui.Label("Duration", item=self.duration_minutes_input))
+        self.add_item(discord.ui.Label("Recording permissions", item=self.recording_perms_input))
 
     async def callback(self, interaction: discord.Interaction):
         view = View()
