@@ -236,12 +236,15 @@ class LectureCreateView(PrivateView):
 
     def update_buttons(self):
         valid_data = self.new_lecture_data["title"].strip() != ""
+        print('button update start:', valid_data)
         try:
-            arrow.get(self.new_lecture_data["start_date"])
+            arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
         except Exception as e:
+            print(e)
             valid_data = False
         self.save_data.disabled = not valid_data
         self.save_data.style = discord.ButtonStyle.green if valid_data else discord.ButtonStyle.gray
+        print('button update end:', valid_data)
 
     @discord.ui.button(label="Edit basic info", style=discord.ButtonStyle.primary)
     async def edit_basic(self, button: Button, interaction: discord.Interaction):
