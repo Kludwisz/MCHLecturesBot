@@ -236,15 +236,13 @@ class LectureCreateView(PrivateView):
 
     def update_buttons(self):
         valid_data = self.new_lecture_data["title"].strip() != ""
-        print('button update start:', valid_data)
         try:
             arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
         except Exception as e:
-            print(e)
             valid_data = False
+            
         self.save_data.disabled = not valid_data
         self.save_data.style = discord.ButtonStyle.green if valid_data else discord.ButtonStyle.gray
-        print('button update end:', valid_data)
 
     @discord.ui.button(label="Edit basic info", style=discord.ButtonStyle.primary)
     async def edit_basic(self, button: Button, interaction: discord.Interaction):
@@ -260,6 +258,11 @@ class LectureCreateView(PrivateView):
 
     @discord.ui.button(label="Create lecture", style=discord.ButtonStyle.gray)
     async def save_data(self, button: Button, interaction: discord.Interaction):
+        if self.details_modal is None:
+            fmt, desc, know = "", "", ""
+        else:
+            fmt, desc, know = self.details_modal.format_input.value, self.details_modal.description_input.value, self.details_modal.knowledge_input.value
+
         try:
             start_time = arrow.get(self.basic_info_modal.datetime_input.value, "DD.MM.YYYY HH:mm")
             new_lecture = Lecture(
@@ -270,9 +273,9 @@ class LectureCreateView(PrivateView):
                     discord_userid = str(interaction.user.id),
                     discord_username = interaction.user.display_name,
                     recording_perms = self.basic_info_modal.recording_perms_input.values[0],
-                    lecture_format = self.details_modal.format_input.value,
-                    description = self.details_modal.description_input.value,
-                    prior_knowledge = self.details_modal.knowledge_input.value
+                    lecture_format = fmt,
+                    description = desc,
+                    prior_knowledge = know
                 )
             )
             await self.service.create_new_lecture(new_lecture)
