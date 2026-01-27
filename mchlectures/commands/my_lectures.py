@@ -282,7 +282,7 @@ class LectureCreateView(PrivateView):
             new_lecture.id = lec_id
             self.nav["main"].handle_lecture_created(new_lecture)
             await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
-            
+
         except Exception as e:
             await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
@@ -306,7 +306,8 @@ class LectureManagerView(PrivateView):
             )
             return embed
 
-        lecture = self.lectures[min(self.page_index, len(self.lectures)-1)]
+        self.page_index = min(self.page_index, len(self.lectures)-1)
+        lecture = self.lectures[self.page_index]
         #end_time = lecture.start_time.shift(minutes=lecture.duration_minutes)
         
         embed = discord.Embed(
@@ -349,8 +350,10 @@ class LectureManagerView(PrivateView):
             if new_lecture.start_time.is_between(lec.start_time.shift(years=-1000), lec.start_time):
                 self.lectures.insert(i, new_lecture)
                 self.page_index = i
-                break
+                self.update_buttons()
+                return
         self.lectures.append(new_lecture)
+        self.page_index = len(self.lectures) - 1
         self.update_buttons()
 
     @discord.ui.button(label="Previous page", style=discord.ButtonStyle.gray)
