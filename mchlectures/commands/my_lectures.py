@@ -153,21 +153,27 @@ class LectureBasicInfoModal(DesignerModal):
             min_length=16, max_length=16
         )
 
+        selected_duration = int(view.new_lecture_data["duration_minutes"])
         self.duration_minutes_input = discord.ui.Select(
             options=[
-                discord.SelectOption(label=f"{m} minutes", value=str(m)) for m in [
-                    30, 45, 60, 75, 90, 120
-                ]
+                discord.SelectOption(
+                    label=f"{m} minutes", 
+                    value=str(m),
+                    default=(m == selected_duration)
+                ) for m in [30, 45, 60, 75, 90, 120]
             ]
         )
-        self.duration_minutes_input.values = [view.new_lecture_data["duration_minutes"]]
 
+        selected_perms = view.new_lecture_data["recording_perms"]
         self.recording_perms_input = discord.ui.Select(
             options=[
-                discord.SelectOption(label=RECORDING_PERMS_SHORT[k], value=k) for k in RECORDING_PERMS_SHORT.keys()
+                discord.SelectOption(
+                    label=RECORDING_PERMS_SHORT[k], 
+                    value=k,
+                    default=(k == selected_perms)
+                ) for k in RECORDING_PERMS_SHORT.keys()
             ]
         )
-        self.duration_minutes_input.values = [view.new_lecture_data["recording_perms"]]
 
         self.add_item(discord.ui.Label("Title", item=self.title_input))
         self.add_item(discord.ui.Label("Date & time", item=self.datetime_input))
