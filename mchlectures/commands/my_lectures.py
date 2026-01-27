@@ -26,6 +26,7 @@ cancel lecture flow (delete):
 
 from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS_SHORT
 from mchlectures.gcalendar.service import CalendarService
+from mchlectures.commands.bot_errors import *
 
 import arrow
 
@@ -34,6 +35,9 @@ from discord.ui import DesignerModal, View, Button, InputText, Label
 
 
 class PrivateView(View):
+    # stores views that this view can go back to when needed
+    nav: dict[str, View] = {}
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user.id:
             await interaction.response.send_message(
@@ -51,7 +55,29 @@ class OperationStatusView(View):
 # -------------------------------------------------------------------
 # View 5
 class LectureCancelConfirmationView(PrivateView):
-    pass
+    def __init__(self, lecture: Lecture, service: CalendarService):
+        super().__init__(timeout=120, disable_on_timeout=True)
+        self.lecture = lecture
+        self.service = service
+
+    def create_embed(self) -> discord.Embed:
+        return discord.Embed(
+            title="Confirm lecture cancellation",
+            description=f"Are you sure you want to cancel your lecture: \"{self.lecture.title}\"?",
+            color=discord.Color.red()
+        )
+        
+    @discord.ui.button(label="Keep lecture", style=discord.ButtonStyle.gray)
+    async def keep_lecture(self, button: Button, interaction: discord.Interaction):
+        await interaction.response.edit_message(embed=self.nav["main"].create_embed(), view=self.nav["main"])
+
+    @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger)
+    async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
+        try:
+            await self.service.delete_lecture(self.lecture)
+            await interaction.response.edit_message(embed=self.nav["main"].create_embed(), view=self.nav["main"])
+        except Exception as e:
+            await interaction.respond(embed=error(message=f"Something went wrong while deleting the lecture: {e}"))
 
 # -------------------------------------------------------------------
 # View 2
@@ -61,11 +87,7 @@ class LectureCreateIntermediateView(PrivateView):
 # -------------------------------------------------------------------
 # View 4
 class LectureModificationView(PrivateView):
-    def __init__(self, lecture: Lecture, user: discord.User, service: CalendarService):
-        super().__init__(timeout=120, disable_on_timeout=True)
-        self.lecture = lecture
-        self.service = service
-        self.user = user
+    pass
 
 
 # -------------------------------------------------------------------
@@ -180,7 +202,7 @@ class LectureBasicInfoModal(DesignerModal):
 
 # -------------------------------------------------------------------
 # View 1
-class LectureManagerView(View):
+class LectureManagerView(PrivateView):
     def __init__(self, lectures: list[Lecture], user: discord.User, service: CalendarService):
         super().__init__(timeout=120, disable_on_timeout=True)
         self.lectures = lectures
@@ -188,21 +210,12 @@ class LectureManagerView(View):
         self.user = user
         self.page_index = 0
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user.id:
-            await interaction.response.send_message(
-                "You cannot interact with other user's interfaces. Use `/my_lectures` to open your own UI.", 
-                ephemeral=True
-            )
-            return False
-        return True
-
     def create_embed(self) -> discord.Embed:
         if not self.lectures:
             embed = discord.Embed(
                 title="Your lectures",
                 description="You currently don't have any lectures scheduled.",
-                color=discord.Color.orange()
+                color=discord.Color.blue()
             )
             return embed
 
@@ -225,9 +238,9 @@ class LectureManagerView(View):
         return embed
 
     def update_buttons(self):
-        # handle button states if user has no lectures
         self.prev_page.disabled = self.page_index <= 0
         self.next_page.disabled = self.page_index >= len(self.lectures) - 1
+        # handle button states if user has no lectures
         has_lectures = len(self.lectures) > 0
         self.edit_lecture.disabled = not has_lectures
         self.cancel_lecture.disabled = not has_lectures
@@ -257,4 +270,6 @@ class LectureManagerView(View):
     @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
     async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
         lecture = self.lectures[self.page_index]
-        await interaction.response.send_message(f"(delete functionality not implemented)")
+        view = LectureCancelConfirmationView(lecture, self.service)
+        view.nav["main"] = self
+        await interaction.respond(view=view)

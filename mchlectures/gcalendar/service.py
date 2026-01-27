@@ -92,4 +92,6 @@ class CalendarService:
 
         await self.calendar_client.create_event(data)
 
+    async def delete_lecture(self, lecture: Lecture):
+        await self.calendar_client.delete_event(lecture)
     
