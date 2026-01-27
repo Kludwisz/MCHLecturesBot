@@ -272,9 +272,6 @@ class LectureCreateView(PrivateView):
     async def save_data(self, button: Button, interaction: discord.Interaction):
         try:
             start_time = arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
-            perms = self.new_lecture_data["custom_recording_perms"] \
-                if self.new_lecture_data["recording_perms"] == "CUSTOM" \
-                else self.new_lecture_data["recording_perms"]
 
             new_lecture = Lecture(
                 title = self.new_lecture_data["title"],
@@ -283,10 +280,11 @@ class LectureCreateView(PrivateView):
                 extended_properties = ExtendedProperties(
                     discord_userid = str(interaction.user.id),
                     discord_username = interaction.user.display_name,
-                    recording_perms = perms,
+                    recording_perms = self.new_lecture_data["recording_perms"],
                     lecture_format = self.new_lecture_data["format"],
                     description = self.new_lecture_data["description"],
-                    prior_knowledge = self.new_lecture_data["prior_knowledge"]
+                    prior_knowledge = self.new_lecture_data["prior_knowledge"],
+                    custom_perms = self.new_lecture_data["custom_recording_perms"]
                 )
             )
             lec_id = await self.service.create_new_lecture(new_lecture)
