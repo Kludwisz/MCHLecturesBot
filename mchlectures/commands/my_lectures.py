@@ -55,10 +55,11 @@ class OperationStatusView(View):
 # -------------------------------------------------------------------
 # View 5
 class LectureCancelConfirmationView(PrivateView):
-    def __init__(self, lecture: Lecture, service: CalendarService):
+    def __init__(self, lecture: Lecture, user: discord.User, service: CalendarService):
         super().__init__(timeout=120, disable_on_timeout=True)
         self.lecture = lecture
         self.service = service
+        self.user = user
 
     def create_embed(self) -> discord.Embed:
         return discord.Embed(
@@ -270,6 +271,6 @@ class LectureManagerView(PrivateView):
     @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
     async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
         lecture = self.lectures[self.page_index]
-        view = LectureCancelConfirmationView(lecture, self.service)
+        view = LectureCancelConfirmationView(lecture, self.user, self.service)
         view.nav["main"] = self
-        await interaction.respond(view=view)
+        await interaction.response.edit_message(embed=view.create_embed(), view=view)
