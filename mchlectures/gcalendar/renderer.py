@@ -3,6 +3,7 @@ from .dateutils import *
 from PIL import Image, ImageDraw, ImageFont
 from math import floor, ceil
 from pprint import pprint
+from io import BytesIO
 import arrow
 
 # Style params -------------------
@@ -143,7 +144,7 @@ class Renderer:
             if lecture.start_time.date() == base_date.date():
                 self._render_lecture(drawer, lecture, xmin, ymin + 2*PADDING)
 
-    async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, filepath: str, cell_width=CELL_WIDTH_PX, cell_height=CELL_HEIGHT_PX):
+    async def render(self, start_date: arrow.Arrow, end_date: arrow.Arrow, buffer: BytesIO, cell_width=CELL_WIDTH_PX, cell_height=CELL_HEIGHT_PX):
         self.cell_width=cell_width
         self.cell_height=cell_height
 
@@ -160,7 +161,7 @@ class Renderer:
             if key == render_key:
                 # use cache & refresh cache entry
                 print(f'using cache (current size: {len(self.cache)})')
-                image.save(filepath)  
+                image.save(buffer, format="PNG")  
                 self.cache.remove(pair)
                 self.cache.append(pair)
                 return
@@ -190,5 +191,5 @@ class Renderer:
         if len(self.cache) == self.MAX_CACHE_SIZE:
             self.cache.pop(0)
         self.cache.append((render_key, img))
-        img.save(filepath)
+        img.save(buffer, format="PNG")
         print(f'added new element, current cache size: {len(self.cache)}')

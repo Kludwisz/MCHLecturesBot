@@ -8,6 +8,7 @@ import discord
 import arrow
 from enum import Enum
 from textwrap import dedent
+from io import BytesIO
 
 
 class CalendarScope(Enum):
@@ -26,9 +27,9 @@ class Calendar(discord.Cog):
     @discord.option(name="scope", default=CalendarScope.WEEK, type=CalendarScope)
     @discord.option(name="query", optional=True)
     async def calendar(self, ctx: discord.ApplicationContext, scope: CalendarScope):
-        await self.calendar_service.render_calendar_to_file(scope=scope.value, filename="calendar.png")
+        bytebuffer = await self.calendar_service.render_calendar_to_file(scope=scope.value)
         
-        file = discord.File("calendar.png")
+        file = discord.File(fp=bytebuffer, filename="calendar.png")
         embed = discord.Embed(title=f"Lecture calendar")
         embed.set_image(url="attachment://calendar.png")
         embed.add_field(name="Full calendar:", value="<https://kludwisz.github.io/MCHLecturesBot/>", inline=False)
@@ -36,7 +37,7 @@ class Calendar(discord.Cog):
         await ctx.respond(embed=embed, file=file)
 
     @discord.slash_command(name="upcoming_lectures", description="Returns a list of N upcoming lectures")
-    @discord.option(name="limit", default=3, type=int)
+    @discord.option(name="limit", default=3, type=int, min_value=1, max_value=6)
     @discord.option(name="query_text", default=None, type=str, required=False)
     async def upcoming_lectures(self, ctx: discord.ApplicationContext, limit: int, query_text: str):
         try:

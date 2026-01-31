@@ -10,6 +10,7 @@ from .gcalendar import Lecture, Calendar
 from .renderer import Renderer
 from .dateutils import *
 from dotenv import dotenv_values
+from io import BytesIO
 import arrow
 
 
@@ -26,14 +27,11 @@ class CalendarService:
         )
         self.renderer = Renderer(self.calendar_client)
 
-    async def render_calendar_to_file(self, scope: str, filename: str):
+    async def render_calendar_to_file(self, scope: str) -> BytesIO:
         """
         :param scope: Either 'this-week', 'week', 'month', or '2-months' - defines the scope of the calendar
-        :param filename: Save location of the resulting png file
+        :return: a byte buffer containing the png file
         """
-        if not filename.endswith('.png'):
-            raise ValueError(f'filename must end with .png, got {filename}')
-        
         AVAILABLE_SCOPES = {
             'this-week': lambda: (
                 snap_to_week_start(arrow.now()), 
@@ -52,11 +50,15 @@ class CalendarService:
         if not scope in AVAILABLE_SCOPES.keys():
             raise ValueError(f'illegal calendar scope: {scope}')
         
+        # render to in-memory buffer
+        buffer = BytesIO()
         start, end = AVAILABLE_SCOPES[scope]()
         if CELL_SIZES[scope] is not None:
-            await self.renderer.render(start, end, filename, *CELL_SIZES[scope])
+            await self.renderer.render(start, end, buffer, *CELL_SIZES[scope])
         else:
-            await self.renderer.render(start, end, filename)
+            await self.renderer.render(start, end, buffer)
+        buffer.seek(0)
+        return buffer
         
     async def get_upcoming_lectures(self, limit: int = 1, userid: str = None, query_text: str = None) -> list[Lecture]:
         """
@@ -76,26 +78,40 @@ class CalendarService:
                 return lectures[i:min(i+limit, len(lectures))]
         return []
 
+    async def assert_event_valid(self, data: Lecture):
+        """
+        Checks whether the provided lecture can be scheduled according to internally defined business rules.
+        Returns gracefully if no conflicts are detected and raises a descriptive ValueError otherwise
+        """
+        # no other lectures within N days of the scheduled one
+        CONFLICT_THRESHOLD = 1  # days
+        filter_start = data.start_time.shift(days=-CONFLICT_THRESHOLD)
+        filter_end = data.start_time.shift(days=CONFLICT_THRESHOLD)
+        potential_conflicts = await self.calendar_client.get_event_list(timeMin=filter_start, timeMax=filter_end)
+        
+        confl_count = len(potential_conflicts["items"])
+        if confl_count == 0:
+            return
+        if confl_count > 1:
+            raise ValueError("lectures can't be scheduled within 24 hours of other lectures")
+        
+        conflicting = Lecture.from_json(potential_conflicts["items"][0])
+        if conflicting.id != data.id:
+            raise ValueError("lectures can't be re-scheduled within 24 hours of other lectures")
+
     async def create_new_lecture(self, data: Lecture) -> str:
         """
         :param data: The data of the requested lecture
         :type data: Lecture
         :return: the ID of the created lecture
         """
-        CONFLICT_THRESHOLD = 1  # days
-
-        # first api call to find conflicting lectures, if there are any this method will throw
-        filter_start = data.start_time.shift(days=-CONFLICT_THRESHOLD)
-        filter_end = data.start_time.shift(days=CONFLICT_THRESHOLD)
-        potential_conflicts = await self.calendar_client.get_event_list(timeMin=filter_start, timeMax=filter_end)
-        if len(potential_conflicts["items"]) != 0:
-            raise ValueError("lectures can't be scheduled within 24 hours of other lectures")
-
+        await self.assert_event_valid(data)
         return await self.calendar_client.create_event(data)
 
     async def delete_lecture(self, lecture: Lecture):
         await self.calendar_client.delete_event(lecture.id)
 
-    async def update_lecture(self, lecture_data: Lecture):
-        await self.calendar_client.update_event(lecture_data)
+    async def update_lecture(self, data: Lecture):
+        await self.assert_event_valid(data)
+        await self.calendar_client.update_event(data)
     
