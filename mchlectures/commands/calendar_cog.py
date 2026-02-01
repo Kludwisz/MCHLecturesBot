@@ -1,5 +1,4 @@
 from mchlectures.gcalendar.service import CalendarService
-from mchlectures.gcalendar.gcalendar import Lecture, ExtendedProperties, RECORDING_PERMS_SHORT
 from mchlectures.commands.bot_utils import *
 from mchlectures.commands.my_lectures import LectureManagerView
 
@@ -8,7 +7,6 @@ import discord
 import arrow
 from enum import Enum
 from textwrap import dedent
-from io import BytesIO
 
 
 class CalendarScope(Enum):
@@ -19,9 +17,10 @@ class CalendarScope(Enum):
 
 
 class Calendar(discord.Cog):
-    def __init__(self):
+    def __init__(self, bot: discord.Bot):
         self.calendar_service = CalendarService()
         self.calendar_service.connect()
+        self.bot = bot
 
     @discord.slash_command(name="calendar", description="Renders a selected view of the lecture calendar")
     @discord.option(name="scope", default=CalendarScope.WEEK, type=CalendarScope)
@@ -65,12 +64,24 @@ class Calendar(discord.Cog):
     async def my_lectures(self, ctx: discord.ApplicationContext):
         try:
             user_lectures = await self.calendar_service.get_upcoming_lectures(limit=10, userid=str(ctx.author.id))
+            
+            # Disable previous view
+            if ctx.author.id in self.bot.active_views:
+                old_view, old_msg = self.bot.active_views[ctx.author.id]
+                old_view.disable_all_items()
+                old_view.stop()
+                await old_msg.edit(view=old_view)
+
+            # Create and register new view
             view = LectureManagerView(user_lectures, ctx.author, self.calendar_service)
             view.update_buttons()
             await ctx.respond(embed=view.create_embed(), view=view)
+            msg = await ctx.interaction.original_response()
+            self.bot.active_views[ctx.author.id] = (view, msg)
+            
         except Exception as e:
             await ctx.respond(embed=error(message=f"{e}"))
 
 
 def setup(bot: discord.Bot):
-    bot.add_cog(Calendar())
+    bot.add_cog(Calendar(bot))

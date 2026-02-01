@@ -1,12 +1,15 @@
 import os
+import signal
+import asyncio
 from dotenv import dotenv_values
+
 import discord
-from pprint import pprint
 
 
 class MchBot(discord.Bot):
     def __init__(self):
         super().__init__()
+        self.active_views: dict[int, tuple[discord.ui.View, discord.Message]] = {}
 
     def load_commands(self):
         for filename in os.listdir("mchlectures/commands"):
@@ -20,20 +23,27 @@ class MchBot(discord.Bot):
     async def on_ready(self):
         print('bot ready')
 
+    async def shutdown(self):
+        for view, message in self.active_views.values():
+            try:
+                view.disable_all_items()
+                view.stop()
+                await message.edit(view=view)
+            except Exception:
+                pass
+        self.active_views.clear()
+        await self.close()
+
 
 if __name__ == '__main__':
     conf = dotenv_values()
     bot = MchBot()
+
+    # setup shutdown handlers
+    loop = asyncio.get_event_loop()
+    def handler(*args):
+        loop.create_task(bot.shutdown())
+    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGTERM, handler)
+
     bot.run(conf["BOT_TOKEN"])
-
-
-# async def main():
-#     cs = CalendarService()
-#     cs.connect()
-#     pprint(await cs.get_upcoming_lectures(limit=2))
-#     await cs.render_calendar_to_file(scope='this-week', filename='testThisWeek.png')
-#     await cs.render_calendar_to_file(scope='week', filename='testWeek.png')
-#     await cs.render_calendar_to_file(scope='month', filename='testMonth.png')
-#     await cs.render_calendar_to_file(scope='2-months', filename='test2Months.png')
-# if __name__ == '__main__':
-#     asyncio.run(main())

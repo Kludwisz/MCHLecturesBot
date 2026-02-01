@@ -518,7 +518,7 @@ class LectureManagerView(LectureManagerBase):
         self.page_index = 0
         
         self.lectures = lectures
-        self.lecture: Lecture = lectures[self.page_index]
+        self.lecture: Lecture = None
         self.new_lecture_data: dict[str, str] = {}
 
         self.current_state = UIState.MAIN
