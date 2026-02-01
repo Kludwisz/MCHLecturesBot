@@ -177,7 +177,8 @@ class LectureCancelConfirmationBuilder(ViewBuilder):
     
     def create_buttons(self):
         view = self.view
-        async def keep_lecture(self, button: Button, interaction: discord.Interaction):
+        async def keep_lecture(interaction: discord.Interaction):
+            view.statechange(UIState.MAIN)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
         keep_button = Button(
             label="Keep lecture",
@@ -186,7 +187,7 @@ class LectureCancelConfirmationBuilder(ViewBuilder):
         keep_button.callback = keep_lecture
         self.view.add_item(keep_button)
 
-        async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
+        async def cancel_lecture(interaction: discord.Interaction):
             try:
                 await view.service.delete_lecture(view.lecture)
                 view.handle_lecture_cancelled(view.lecture.id)
@@ -233,7 +234,7 @@ class LectureUpdateBaseBuilder(ViewBuilder):
     def create_buttons(self):
         view = self.view
 
-        async def edit_basic(self, button: Button, interaction: discord.Interaction):
+        async def edit_basic(interaction: discord.Interaction):
             modal = LectureBasicInfoModal(view)
             await interaction.response.send_modal(modal)
         edit_basic_button = Button(
@@ -243,7 +244,7 @@ class LectureUpdateBaseBuilder(ViewBuilder):
         edit_basic_button.callback = edit_basic
         self.view.add_item(edit_basic_button)
 
-        async def edit_details(self, button: Button, interaction: discord.Interaction):
+        async def edit_details(interaction: discord.Interaction):
             modal = LectureDetailsModal(view)
             await interaction.response.send_modal(modal)
         edit_detail_button = Button(
@@ -285,7 +286,7 @@ class LectureCreateBuilder(LectureUpdateBaseBuilder):
         super().create_buttons()
         view = self.view
         
-        async def save_data(self, button: Button, interaction: discord.Interaction):
+        async def save_data(interaction: discord.Interaction):
             try:
                 start_time = arrow.get(view.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
 
@@ -319,7 +320,8 @@ class LectureCreateBuilder(LectureUpdateBaseBuilder):
         self.view.save_data.callback = save_data
         self.view.add_item(self.view.save_data)
 
-        async def cancel(self, button: Button, interaction: discord.Interaction):
+        async def cancel(interaction: discord.Interaction):
+            view.statechange(UIState.MAIN)
             await interaction.response.edit_message(view=view, embed=view.create_embed())
         cancel_button = Button(
             label="Cancel",
@@ -350,7 +352,7 @@ class LectureEditBuilder(LectureUpdateBaseBuilder):
         super().create_buttons()
         view = self.view
 
-        async def save_data(self, button: Button, interaction: discord.Interaction):
+        async def save_data(interaction: discord.Interaction):
             try:
                 start_time = arrow.get(view.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
 
@@ -386,7 +388,8 @@ class LectureEditBuilder(LectureUpdateBaseBuilder):
         self.view.save_data.callback = save_data
         self.view.add_item(self.view.save_data)
 
-        async def cancel(self, button: Button, interaction: discord.Interaction):
+        async def cancel(interaction: discord.Interaction):
+            view.statechange(UIState.MAIN)
             await interaction.response.edit_message(view=view, embed=view.create_embed())
         cancel_button = Button(
             label="Cancel",
@@ -412,7 +415,7 @@ class LectureBrowseBuilder(ViewBuilder):
         #end_time = lecture.start_time.shift(minutes=lecture.duration_minutes)
         
         embed = discord.Embed(
-            title=f"Manage lecture: {self.view.lecture.title}",
+            title=f"Manage lecture: {lecture.title}",
             color=discord.Color.dark_gold(),
             description=f"Page {self.view.page_index + 1} out of {len(self.view.lectures)}"
         )
@@ -429,7 +432,7 @@ class LectureBrowseBuilder(ViewBuilder):
     def create_buttons(self):
         view = self.view
 
-        async def prev_page(self, button: Button, interaction: discord.Interaction):
+        async def prev_page(interaction: discord.Interaction):
             view.page_index -= 1
             view.update_buttons()
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
@@ -440,7 +443,7 @@ class LectureBrowseBuilder(ViewBuilder):
         view.prev_page.callback = prev_page
         view.add_item(view.prev_page)
 
-        async def next_page(self, button: Button, interaction: discord.Interaction):
+        async def next_page(interaction: discord.Interaction):
             view.page_index += 1
             view.update_buttons()
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
@@ -451,7 +454,7 @@ class LectureBrowseBuilder(ViewBuilder):
         view.next_page.callback = next_page
         view.add_item(view.next_page)
 
-        async def schedule_new(self, button: Button, interaction: discord.Interaction):
+        async def schedule_new(interaction: discord.Interaction):
             view.statechange(UIState.CREATE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
         view.schedule_new = Button(
@@ -461,7 +464,7 @@ class LectureBrowseBuilder(ViewBuilder):
         view.schedule_new.callback = schedule_new
         view.add_item(view.schedule_new)
 
-        async def edit_lecture(self, button: Button, interaction: discord.Interaction):
+        async def edit_lecture(interaction: discord.Interaction):
             view.lecture = view.lectures[view.page_index]
             view.statechange(UIState.UPDATE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
@@ -473,7 +476,7 @@ class LectureBrowseBuilder(ViewBuilder):
         view.edit_lecture.callback = edit_lecture
         view.add_item(view.edit_lecture)
 
-        async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
+        async def cancel_lecture(interaction: discord.Interaction):
             view.lecture = view.lectures[view.page_index]
             view.statechange(UIState.DELETE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
@@ -500,6 +503,7 @@ class LectureBrowseBuilder(ViewBuilder):
 # -------------------------------------------------------------------
 # View class - handles UI display based on the current state
 class LectureManagerView(LectureManagerBase):
+    view_builder: ViewBuilder = None
     BUILDER_BUILDERS = {
         UIState.MAIN: lambda x: LectureBrowseBuilder(x),
         UIState.CREATE: lambda x: LectureCreateBuilder(x),
@@ -518,7 +522,7 @@ class LectureManagerView(LectureManagerBase):
         self.new_lecture_data: dict[str, str] = {}
 
         self.current_state = UIState.MAIN
-        self.view_builder = LectureBrowseBuilder(self)
+        self.statechange(self.current_state)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user.id:
@@ -550,6 +554,9 @@ class LectureManagerView(LectureManagerBase):
             if self.lectures[i].id == event_id:
                 self.lectures.pop(i)
                 break
+        if self.page_index >= len(self.lectures):
+            self.page_index = max(0, len(self.lectures) - 1)
+        self.lecture = None if len(self.lectures) == 0 else self.lectures[self.page_index]
         self.update_buttons()
 
     def handle_lecture_created(self, new_lecture: Lecture):
@@ -559,8 +566,10 @@ class LectureManagerView(LectureManagerBase):
             if new_lecture.start_time.is_between(lec.start_time.shift(years=-1000), lec.start_time):
                 self.lectures.insert(i, new_lecture)
                 self.page_index = i
+                self.lecture = self.lectures[self.page_index]
                 self.update_buttons()
                 return
         self.lectures.append(new_lecture)
         self.page_index = len(self.lectures) - 1
+        self.lecture = self.lectures[self.page_index]
         self.update_buttons()
