@@ -46,4 +46,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)
 
-    bot.run(conf["BOT_TOKEN"])
+    try:
+        bot.run(conf["BOT_TOKEN"])
+    except RuntimeError as err:
+        print('App closed with RuntimeError')
