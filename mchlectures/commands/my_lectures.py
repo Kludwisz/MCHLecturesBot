@@ -149,7 +149,6 @@ class LectureManagerBase(View):
     def handle_lecture_cancelled(self, event_id: str): pass
     def handle_lecture_created(self, new_lecture: Lecture): pass
 
-
 class ViewBuilder:
     def __init__(self, view: LectureManagerBase):
         self.view = view
@@ -164,7 +163,7 @@ class ViewBuilder:
         return
 
 # -------------------------------------------------------------------
-# Lecture cancellation viewstate
+# Lecture cancellation viewstate (done)
 class LectureCancelConfirmationBuilder(ViewBuilder):
     def __init__(self, view: LectureManagerBase):
         self.view = view
@@ -203,7 +202,7 @@ class LectureCancelConfirmationBuilder(ViewBuilder):
         self.view.add_item(yeet_button)
 
 # -------------------------------------------------------------------
-# Shared viewstate for creating & editing lectures
+# Shared viewstate for creating & editing lectures (done)
 class LectureUpdateBaseBuilder(ViewBuilder):
     embed_color: discord.Color
     embed_title: str
@@ -232,16 +231,27 @@ class LectureUpdateBaseBuilder(ViewBuilder):
         return embed
     
     def create_buttons(self):
-        # TODO
-        @discord.ui.button(label="Edit basic info", style=discord.ButtonStyle.primary)
-        async def edit_basic(self, button: Button, interaction: discord.Interaction):
-            modal = LectureBasicInfoModal(self)
-            await interaction.response.send_modal(modal)
+        view = self.view
 
-        @discord.ui.button(label="Edit details", style=discord.ButtonStyle.primary)
-        async def edit_details(self, button: Button, interaction: discord.Interaction):
-            modal = LectureDetailsModal(self)
+        async def edit_basic(self, button: Button, interaction: discord.Interaction):
+            modal = LectureBasicInfoModal(view)
             await interaction.response.send_modal(modal)
+        edit_basic_button = Button(
+            label="Edit basic info",
+            style=discord.ButtonStyle.primary,
+        )
+        edit_basic_button.callback = edit_basic
+        self.view.add_item(edit_basic_button)
+
+        async def edit_details(self, button: Button, interaction: discord.Interaction):
+            modal = LectureDetailsModal(view)
+            await interaction.response.send_modal(modal)
+        edit_detail_button = Button(
+            label="Edit details",
+            style=discord.ButtonStyle.primary,
+        )
+        edit_detail_button.callback = edit_details
+        self.view.add_item(edit_detail_button)
 
     def update_buttons(self):
         valid_data = self.view.new_lecture_data["title"].strip() != ""
@@ -254,7 +264,7 @@ class LectureUpdateBaseBuilder(ViewBuilder):
         self.view.save_data.style = discord.ButtonStyle.green if valid_data else discord.ButtonStyle.gray
 
 # -------------------------------------------------------------------
-# New lecture viewstate
+# New lecture viewstate (done)
 class LectureCreateBuilder(LectureUpdateBaseBuilder):
     def __init__(self, view: View):
         super().__init__(view)
@@ -273,37 +283,50 @@ class LectureCreateBuilder(LectureUpdateBaseBuilder):
 
     def create_buttons(self):
         super().create_buttons()
-        # TODO
-        @discord.ui.button(label="Create lecture", style=discord.ButtonStyle.gray)
+        view = self.view
+        
         async def save_data(self, button: Button, interaction: discord.Interaction):
             try:
-                start_time = arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
+                start_time = arrow.get(view.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
 
                 new_lecture = Lecture(
-                    title = self.new_lecture_data["title"],
+                    title = view.new_lecture_data["title"],
                     start_time = start_time,
-                    duration_minutes = int(self.new_lecture_data["duration_minutes"]),
+                    duration_minutes = int(view.new_lecture_data["duration_minutes"]),
                     extended_properties = ExtendedProperties(
                         discord_userid = str(interaction.user.id),
                         discord_username = interaction.user.display_name,
-                        recording_perms = self.new_lecture_data["recording_perms"],
-                        lecture_format = self.new_lecture_data["format"],
-                        description = self.new_lecture_data["description"],
-                        prior_knowledge = self.new_lecture_data["prior_knowledge"],
-                        custom_perms = self.new_lecture_data["custom_recording_perms"]
+                        recording_perms = view.new_lecture_data["recording_perms"],
+                        lecture_format = view.new_lecture_data["format"],
+                        description = view.new_lecture_data["description"],
+                        prior_knowledge = view.new_lecture_data["prior_knowledge"],
+                        custom_perms = view.new_lecture_data["custom_recording_perms"]
                     )
                 )
-                lec_id = await self.service.create_new_lecture(new_lecture)
+                lec_id = await view.service.create_new_lecture(new_lecture)
                 new_lecture.id = lec_id
-                self.nav["main"].handle_lecture_created(new_lecture)
-                await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
-
+                view.handle_lecture_created(new_lecture)
+                view.statechange(UIState.MAIN)
+                await interaction.response.edit_message(view=view, embed=view.create_embed())
             except Exception as e:
                 await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
+        
+        self.view.save_data = Button(
+            label="Create lecture",
+            style=discord.ButtonStyle.gray,
+            disabled=True
+        )
+        self.view.save_data.callback = save_data
+        self.view.add_item(self.view.save_data)
 
-        @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
         async def cancel(self, button: Button, interaction: discord.Interaction):
-            await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+            await interaction.response.edit_message(view=view, embed=view.create_embed())
+        cancel_button = Button(
+            label="Cancel",
+            style=discord.ButtonStyle.gray,
+        )
+        cancel_button.callback = cancel
+        self.view.add_item(cancel_button)
 
 # -------------------------------------------------------------------
 # Update existing lecture viewstate
@@ -324,41 +347,53 @@ class LectureEditBuilder(LectureUpdateBaseBuilder):
         }
 
     def create_buttons(self):
-        # TODO
         super().create_buttons()
+        view = self.view
 
-        @discord.ui.button(label="Save changes", style=discord.ButtonStyle.gray)
         async def save_data(self, button: Button, interaction: discord.Interaction):
             try:
-                start_time = arrow.get(self.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
+                start_time = arrow.get(view.new_lecture_data["start_date"], "DD.MM.YYYY HH:mm")
 
                 new_lecture = Lecture(
-                    id=self.lecture.id,
-                    title = self.new_lecture_data["title"],
+                    id=view.lecture.id,
+                    title = view.new_lecture_data["title"],
                     start_time = start_time,
-                    duration_minutes = int(self.new_lecture_data["duration_minutes"]),
+                    duration_minutes = int(view.new_lecture_data["duration_minutes"]),
                     extended_properties = ExtendedProperties(
-                        discord_userid = self.lecture.extended_properties.discord_userid,
-                        discord_username = self.lecture.extended_properties.discord_username,
-                        recording_perms = self.new_lecture_data["recording_perms"],
-                        lecture_format = self.new_lecture_data["format"],
-                        description = self.new_lecture_data["description"],
-                        prior_knowledge = self.new_lecture_data["prior_knowledge"],
-                        custom_perms = self.new_lecture_data["custom_recording_perms"]
+                        discord_userid = view.lecture.extended_properties.discord_userid,
+                        discord_username = view.lecture.extended_properties.discord_username,
+                        recording_perms = view.new_lecture_data["recording_perms"],
+                        lecture_format = view.new_lecture_data["format"],
+                        description = view.new_lecture_data["description"],
+                        prior_knowledge = view.new_lecture_data["prior_knowledge"],
+                        custom_perms = view.new_lecture_data["custom_recording_perms"]
                     )
                 )
                 
-                await self.service.update_lecture(new_lecture)
-                self.nav["main"].handle_lecture_cancelled(new_lecture.id)
-                self.nav["main"].handle_lecture_created(new_lecture)
-                await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+                await view.service.update_lecture(new_lecture)
+                view.handle_lecture_cancelled(new_lecture.id)
+                view.handle_lecture_created(new_lecture)
+                view.statechange(UIState.MAIN)
+                await interaction.response.edit_message(view=view, embed=view.create_embed())
 
             except Exception as e:
                 await interaction.response.send_message(f"Invalid data: {e}", ephemeral=True)
 
-        @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
+        self.view.save_data = Button(
+            label="Save changes",
+            style=discord.ButtonStyle.green
+        )
+        self.view.save_data.callback = save_data
+        self.view.add_item(self.view.save_data)
+
         async def cancel(self, button: Button, interaction: discord.Interaction):
-            await interaction.response.edit_message(view=self.nav["main"], embed=self.nav["main"].create_embed())
+            await interaction.response.edit_message(view=view, embed=view.create_embed())
+        cancel_button = Button(
+            label="Cancel",
+            style=discord.ButtonStyle.gray,
+        )
+        cancel_button.callback = cancel
+        self.view.add_item(cancel_button)
 
 # -------------------------------------------------------------------
 # Browse lectures viewstate
@@ -393,35 +428,62 @@ class LectureBrowseBuilder(ViewBuilder):
     
     def create_buttons(self):
         view = self.view
-        # TODO
-        @discord.ui.button(label="Previous page", style=discord.ButtonStyle.gray)
+
         async def prev_page(self, button: Button, interaction: discord.Interaction):
             view.page_index -= 1
             view.update_buttons()
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
+        view.prev_page = Button(
+            label="Previous page", 
+            style=discord.ButtonStyle.gray
+        )
+        view.prev_page.callback = prev_page
+        view.add_item(view.prev_page)
 
-        @discord.ui.button(label="Next page", style=discord.ButtonStyle.gray)
         async def next_page(self, button: Button, interaction: discord.Interaction):
             view.page_index += 1
             view.update_buttons()
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
+        view.next_page = Button(
+            label="Next page", 
+            style=discord.ButtonStyle.gray
+        )
+        view.next_page.callback = next_page
+        view.add_item(view.next_page)
 
-        @discord.ui.button(label="Schedule new lecture", style=discord.ButtonStyle.green)
         async def schedule_new(self, button: Button, interaction: discord.Interaction):
             view.statechange(UIState.CREATE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
+        view.schedule_new = Button(
+            label="Schedule new lecture", 
+            style=discord.ButtonStyle.green
+        )
+        view.schedule_new.callback = schedule_new
+        view.add_item(view.schedule_new)
 
-        @discord.ui.button(label="Modify lecture data", style=discord.ButtonStyle.primary, row=2)
         async def edit_lecture(self, button: Button, interaction: discord.Interaction):
             view.lecture = view.lectures[view.page_index]
             view.statechange(UIState.UPDATE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
+        view.edit_lecture = Button(
+            label="Edit lecture data", 
+            style=discord.ButtonStyle.primary,
+            row=2
+        )
+        view.edit_lecture.callback = edit_lecture
+        view.add_item(view.edit_lecture)
 
-        @discord.ui.button(label="Cancel lecture", style=discord.ButtonStyle.danger, row=2)
         async def cancel_lecture(self, button: Button, interaction: discord.Interaction):
             view.lecture = view.lectures[view.page_index]
             view.statechange(UIState.DELETE)
             await interaction.response.edit_message(embed=view.create_embed(), view=view)
+        view.cancel_lecture = Button(
+            label="Cancel lecture", 
+            style=discord.ButtonStyle.danger,
+            row=2
+        )
+        view.cancel_lecture.callback = cancel_lecture
+        view.add_item(view.cancel_lecture)
 
     def update_buttons(self):
         self.view.prev_page.disabled = self.view.page_index <= 0
@@ -468,10 +530,11 @@ class LectureManagerView(LectureManagerBase):
         return True
 
     def statechange(self, state: UIState):
-        if state == self.current_state:
-            return
+        self.clear_items()
         self.current_state = state
         self.view_builder = self.BUILDER_BUILDERS[self.current_state](self)
+        self.create_buttons()
+        self.update_buttons()
 
     def create_embed(self):
         return self.view_builder.create_embed()
